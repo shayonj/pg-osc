@@ -1,0 +1,5 @@
+# TODO: add schema.table_name to all queries. everything assumes its in the public schema
+# TODO: support dry run mode
+# TODO: Potential to refactor Orchestrator class and extract some functions into a utility/helper class
+# TODO: Setup CI
+# TODO: Release process - gem and dockerfile
