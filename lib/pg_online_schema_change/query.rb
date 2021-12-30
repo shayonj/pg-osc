@@ -10,6 +10,8 @@ module PgOnlineSchemaChange
         PgQuery.parse(query).tree.stmts.all? do |statement|
           statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt)
         end
+      rescue PgQuery::ParseError => e
+        false
       end
 
       def table(query)
@@ -61,7 +63,6 @@ module PgOnlineSchemaChange
 
         indexes = []
         run(client.connection, query) do |result|
-          puts result.map { |row| row }
           indexes = result.map { |row| row["indexdef"] }
         end
 

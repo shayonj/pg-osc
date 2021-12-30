@@ -12,6 +12,11 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(described_class.alter_statement?(query)).to eq(false)
     end
 
+    it "returns false when thrown Error" do
+      query = "ALTER"
+      expect(described_class.alter_statement?(query)).to eq(false)
+    end
+
     it "returns true with multiple alter statements" do
       query = <<~SQL
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;

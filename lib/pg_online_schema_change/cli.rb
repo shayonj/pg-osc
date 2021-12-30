@@ -15,7 +15,7 @@ module PgOnlineSchemaChange
     method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Emit logs in debug mode"
 
     def perform
-      client_options = Struct.new(*options.keys).new(*options.values)
+      client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)
 
       PgOnlineSchemaChange.logger = client_options.verbose
       PgOnlineSchemaChange::Orchestrate.run!(client_options)

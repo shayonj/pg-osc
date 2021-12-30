@@ -22,12 +22,16 @@ module PgOnlineSchemaChange
         setup_shadow_table!
         disable_vacuum!
         copy_data!
-        # run_alter_statement!
-        # add_indexes_to_shadow_table!
+        run_alter_statement!
+        add_indexes_to_shadow_table!
         # replay_and_swap!
+        # run_analyze!
         # drop_and_cleanup!
       rescue StandardError => e
-        PgOnlineSchemaChange.logger.fatal("Soemthing went wrong: #{e.message}", { e: e })
+        PgOnlineSchemaChange.logger.fatal("Something went wrong: #{e.message}", { e: e })
+
+        # drop_and_cleanup!
+
         raise e
       end
 
@@ -63,6 +67,8 @@ module PgOnlineSchemaChange
           END;
           $$ LANGUAGE PLPGSQL SECURITY DEFINER;
 
+
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
 
           CREATE TRIGGER primary_to_audit_table_trigger
           AFTER INSERT OR UPDATE OR DELETE ON #{client.table}
