@@ -149,4 +149,35 @@ RSpec.describe PgOnlineSchemaChange::Query do
                            ])
     end
   end
+
+  describe ".primary_key_for" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      create_dummy_table(client)
+    end
+
+    it "returns index statements for shadow table with altered index name" do
+      query = <<~SQL
+        SELECT
+          pg_attribute.attname as column_name
+        FROM pg_index, pg_class, pg_attribute, pg_namespace
+        WHERE
+          pg_class.oid = \'#{client.table}\'::regclass AND
+          indrelid = pg_class.oid AND
+          nspname = \'#{client.schema}\' AND
+          pg_class.relnamespace = pg_namespace.oid AND
+          pg_attribute.attrelid = pg_class.oid AND
+          pg_attribute.attnum = any(pg_index.indkey)
+        AND indisprimary
+      SQL
+
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:exec).with(query).and_call_original
+      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+
+      result = described_class.primary_key_for(client, client.table)
+      expect(result).to eq("user_id")
+    end
+  end
 end

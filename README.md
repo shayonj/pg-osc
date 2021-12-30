@@ -53,6 +53,8 @@ print the version
 ```
 
 ## Caveats
+- A primary key should exists on the table, without it pgosc will error out early.
+  - This is because - currently there is no other way to uniquely identify rows during replay.
 - For a brief moment, towards the end of the process pgsoc will acquire a `ACCESS EXCLUSIVE lock` to perform the swap of table name and FK references
 - By design it doesn't kill any other DDLs being performed. Its best to not run any DDLs against parent table during the process to avoid any issues.
 - During the nature of duplicating a table, there needs to be enough space on the disk to support the operation.

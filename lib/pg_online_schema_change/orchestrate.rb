@@ -1,7 +1,7 @@
 module PgOnlineSchemaChange
   class Orchestrate
     class << self
-      attr_accessor :client, :audit_table, :shadow_table
+      attr_accessor :client, :audit_table, :shadow_table, :primary_key
 
       def setup!(options)
         @client = Client.new(options)
@@ -16,6 +16,7 @@ module PgOnlineSchemaChange
 
       def run!(options)
         setup!(options)
+        raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
         setup_audit_table!
         setup_trigger!
@@ -66,9 +67,6 @@ module PgOnlineSchemaChange
             END IF;
           END;
           $$ LANGUAGE PLPGSQL SECURITY DEFINER;
-
-
-          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
 
           CREATE TRIGGER primary_to_audit_table_trigger
           AFTER INSERT OR UPDATE OR DELETE ON #{client.table}
@@ -139,6 +137,10 @@ module PgOnlineSchemaChange
       end
 
       def drop_and_cleanup!
+      end
+
+      private def primary_key
+        @primary_key ||= Query.primary_key_for(client, client.table)
       end
     end
   end

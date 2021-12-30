@@ -86,6 +86,29 @@ module PgOnlineSchemaChange
 
         indexes
       end
+
+      def primary_key_for(client, table)
+        query = <<~SQL
+          SELECT
+            pg_attribute.attname as column_name
+          FROM pg_index, pg_class, pg_attribute, pg_namespace
+          WHERE
+            pg_class.oid = \'#{table}\'::regclass AND
+            indrelid = pg_class.oid AND
+            nspname = \'#{client.schema}\' AND
+            pg_class.relnamespace = pg_namespace.oid AND
+            pg_attribute.attrelid = pg_class.oid AND
+            pg_attribute.attnum = any(pg_index.indkey)
+          AND indisprimary
+        SQL
+
+        columns = []
+        run(client.connection, query) do |result|
+          columns = result.map { |row| row["column_name"] }
+        end
+
+        columns.first
+      end
     end
   end
 end

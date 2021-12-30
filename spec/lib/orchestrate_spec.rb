@@ -111,7 +111,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         END;
         $$ LANGUAGE PLPGSQL SECURITY DEFINER;
 
-
         CREATE TRIGGER primary_to_audit_table_trigger
         AFTER INSERT OR UPDATE OR DELETE ON books
         FOR EACH ROW EXECUTE PROCEDURE primary_to_audit_table_trigger();
