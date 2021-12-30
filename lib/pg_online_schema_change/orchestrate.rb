@@ -185,6 +185,17 @@ module PgOnlineSchemaChange
 
             to_be_deleted_rows << row[primary_key]
           when "UPDATE"
+            set_values = parent_table_columns.map do |column|
+              "#{column} = '#{row[column]}'"
+            end.join(",")
+
+            sql = <<~SQL
+              UPDATE \"#{shadow_table}\"
+              SET #{set_values}
+              WHERE #{primary_key}=\'#{row[primary_key]}\';
+            SQL
+            Query.run(client.connection, sql)
+
             to_be_deleted_rows << row[primary_key]
           when "DELETE"
             to_be_deleted_rows << row[primary_key]
