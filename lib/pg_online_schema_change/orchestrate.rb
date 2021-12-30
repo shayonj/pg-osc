@@ -19,6 +19,7 @@ module PgOnlineSchemaChange
 
       def run!(options)
         setup!(options)
+
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
         setup_audit_table!
@@ -111,8 +112,9 @@ module PgOnlineSchemaChange
       def copy_data!
         PgOnlineSchemaChange.logger.info("Copying contents onto on shadow table from parent table...",
                                          { shadow_table: shadow_table, parent_table: client.table })
-        columns = Query.table_columns(client).map { |entry| entry["column_name"] }.join(", ")
-        @parent_table_columns = columns
+
+        @parent_table_columns = Query.table_columns(client).map { |entry| entry["column_name"] }
+        columns = parent_table_columns.join(", ")
 
         sql = <<~SQL
           INSERT INTO #{shadow_table}
@@ -154,7 +156,7 @@ module PgOnlineSchemaChange
           SQL
 
           rows = []
-          Query.run(client.connection, statement) { |result| rows = result }
+          Query.run(client.connection, statement) { |result| rows = result.map { |row| row } }
 
           raise CountBelowDelta if rows.count <= DELTA_COUNT
 
@@ -172,10 +174,10 @@ module PgOnlineSchemaChange
         rows.each do |row|
           case row["operation_type"]
           when "INSERT"
-            values = @parent_table_columns.map { |column| row[column] }
+            values = parent_table_columns.map { |column| "'#{row[column]}'" }.join(",")
 
             sql = <<~SQL
-              INSERT INTO \"#{shadow_table}\" (#{@parent_table_columns})
+              INSERT INTO \"#{shadow_table}\" (#{parent_table_columns.join(',')})
               VALUES (#{values});
             SQL
 
@@ -190,10 +192,12 @@ module PgOnlineSchemaChange
         end
 
         # Delete items from the audit now that are replayed
-        delete_query = <<~SQL
-          DELETE FROM #{audit_table} WHERE id IN (#{to_be_deleted_rows.join(",")})
-        SQL
-        Query.run(client.connection, delete_query)
+        if rows.count >= 1
+          delete_query = <<~SQL
+            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(',')})
+          SQL
+          Query.run(client.connection, delete_query)
+        end
       end
 
       def swap!
@@ -202,7 +206,7 @@ module PgOnlineSchemaChange
       def drop_and_cleanup!
       end
 
-      private def primary_key
+      def primary_key
         @primary_key ||= Query.primary_key_for(client, client.table)
       end
     end
