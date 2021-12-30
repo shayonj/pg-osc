@@ -177,7 +177,7 @@ module PgOnlineSchemaChange
             values = parent_table_columns.map { |column| "'#{row[column]}'" }.join(",")
 
             sql = <<~SQL
-              INSERT INTO \"#{shadow_table}\" (#{parent_table_columns.join(',')})
+              INSERT INTO #{shadow_table} (#{parent_table_columns.join(',')})
               VALUES (#{values});
             SQL
 
@@ -190,7 +190,7 @@ module PgOnlineSchemaChange
             end.join(",")
 
             sql = <<~SQL
-              UPDATE \"#{shadow_table}\"
+              UPDATE #{shadow_table}
               SET #{set_values}
               WHERE #{primary_key}=\'#{row[primary_key]}\';
             SQL
@@ -198,6 +198,10 @@ module PgOnlineSchemaChange
 
             to_be_deleted_rows << row[primary_key]
           when "DELETE"
+            sql = <<~SQL
+              DELETE FROM #{shadow_table} WHERE #{primary_key}=\'#{row[primary_key]}\';
+            SQL
+            Query.run(client.connection, sql)
             to_be_deleted_rows << row[primary_key]
           end
         end

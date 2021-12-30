@@ -487,10 +487,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       user_id = 10
       rows = []
       shadow_table_query = <<~SQL
-        SELECT * from \"#{described_class.shadow_table}\" WHERE #{described_class.primary_key}=#{user_id};
+        SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
       SQL
 
-      # Expect row not present in into shadow table
+      # Expect new row not present in into shadow table
       PgOnlineSchemaChange::Query.run(client.connection, shadow_table_query) do |result|
         rows = result.map { |row| row }
       end
@@ -539,10 +539,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       user_id = 2
       rows = []
       shadow_table_query = <<~SQL
-        SELECT * from \"#{described_class.shadow_table}\" WHERE #{described_class.primary_key}=#{user_id};
+        SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
       SQL
 
-      # Expect row not present in into shadow table
+      # Expect existing row being present in into shadow table
       PgOnlineSchemaChange::Query.run(client.connection, shadow_table_query) do |result|
         rows = result.map { |row| row }
       end
@@ -578,6 +578,62 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(shadow_rows.first["email"]).to eq("james1@bond.com")
       expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
       expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
+
+      # Expect row being removed from audit table
+      audit_rows = []
+      audit_table_query = <<~SQL
+        SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+      SQL
+      PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
+        audit_rows = result.map { |row| row }
+      end
+      expect(audit_rows.count).to eq(0)
+    end
+
+    it "replays DELETE data and cleanups the rows in audit table after" do
+      user_id = 2
+      rows = []
+      shadow_table_query = <<~SQL
+        SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
+      SQL
+
+      # Expect existing row being present in into shadow table
+      PgOnlineSchemaChange::Query.run(client.connection, shadow_table_query) do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows.count).to eq(1)
+
+      # Delete an entry for the trigger
+      query = <<~SQL
+        DELETE FROM books WHERE user_id=\'#{user_id}\';
+      SQL
+      PgOnlineSchemaChange::Query.run(client.connection, query)
+
+      # Expect row being added to the audit table
+      audit_rows = []
+      audit_table_query = <<~SQL
+        SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+      SQL
+      PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
+        audit_rows = result.map { |row| row }
+      end
+      expect(audit_rows.count).to eq(1)
+
+      # Fetch rows
+      select_query = <<~SQL
+        SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
+      SQL
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
+
+      described_class.replay_data!(rows)
+
+      # Expect row not being present in shadow table anymore
+      shadow_rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, shadow_table_query) do |result|
+        shadow_rows = result.map { |row| row }
+      end
+      expect(shadow_rows.count).to eq(0)
 
       # Expect row being removed from audit table
       audit_rows = []
