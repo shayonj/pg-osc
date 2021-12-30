@@ -1,0 +1,9 @@
+version: '2'
+services:
+  postgres:
+    image: postgres:9.6.2-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: jamesbond
+      POSTGRES_DB: postgres

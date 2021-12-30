@@ -3,6 +3,8 @@ require "pg"
 
 module PgOnlineSchemaChange
   class Query
+    INDEX_SUFFIX = "_pgosc".freeze
+
     class << self
       def alter_statement?(query)
         PgQuery.parse(query).tree.stmts.all? do |statement|
@@ -14,7 +16,7 @@ module PgOnlineSchemaChange
         PgQuery.parse(query).tables[0]
       end
 
-      def run(connection, query, _timeout = nil, &block)
+      def run(connection, query, &block)
         PgOnlineSchemaChange.logger.debug("Running query", { query: query })
 
         connection.exec("BEGIN;")
@@ -50,22 +52,30 @@ module PgOnlineSchemaChange
         parsed_query.deparse
       end
 
-      def get_indexes_for(client, shadow_table)
+      def get_indexes_for(client, table)
         query = <<~SQL
-          SELECT indexdef
+          SELECT indexdef, schemaname
           FROM pg_indexes
-          WHERE schemaname = \'#{client.schema}\' AND tablename = \'#{client.table}\'
+          WHERE schemaname = \'#{client.schema}\' AND tablename = \'#{table}\'
         SQL
 
         indexes = []
         run(client.connection, query) do |result|
+          puts result.map { |row| row }
           indexes = result.map { |row| row["indexdef"] }
         end
+
+        indexes
+      end
+
+      def get_updated_indexes_for(client, shadow_table)
+        indexes = get_indexes_for(client, client.table)
 
         # Ensure index statements are run against the shadow table
         indexes.map! do |index|
           parsed_query = PgQuery.parse(index)
           parsed_query.tree.stmts.each do |statement|
+            statement.stmt.index_stmt.idxname += INDEX_SUFFIX
             statement.stmt.index_stmt.relation.relname = shadow_table
             statement.stmt.index_stmt.relation.schemaname = client.schema
           end

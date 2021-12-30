@@ -24,6 +24,7 @@ Or install it yourself as:
 ## Requirements
 - PostgreSQL 9.3 and later
 - Ruby 2.6 and later
+- Database user should have permissions for `TRIGGER` and/or a `SUPERUSER`
 
 ## Usage
 
@@ -76,7 +77,17 @@ print the version
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `bundle exec spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+- Install ruby 3.0
+```
+\curl -sSL https://get.rvm.io | bash
+
+rvm install 3.0.0
+
+rvm use 3.0.0
+```
+- Spin up postgres via Docker Compose - `docker compose up`
+- Then, run `bundle exec spec` to run the tests. 
+- You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 

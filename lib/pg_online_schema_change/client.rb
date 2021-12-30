@@ -18,7 +18,7 @@ module PgOnlineSchemaChange
         host: @host,
         user: @username,
         password: @password,
-        port: @port
+        port: @port,
       )
 
       raise Error, "Not a valid ALTER statement: #{@alter_statement}" unless Query.alter_statement?(@alter_statement)

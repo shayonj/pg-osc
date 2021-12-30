@@ -14,7 +14,7 @@ module DatabaseHelpers
 
   def new_dummy_table_sql
     <<~SQL
-      CREATE TABLE IF NOT EXISTS books (
+      CREATE TABLE IF NOT EXISTS public.books (
         user_id serial PRIMARY KEY,
         username VARCHAR ( 50 ) UNIQUE NOT NULL,
         password VARCHAR ( 50 ) NOT NULL,

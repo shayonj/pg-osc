@@ -46,7 +46,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "creates the audit table with columns from parent table and additional identifiers" do
-      expect(client.connection).to receive(:exec).with("BEGIN;").times.and_call_original
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_audit_table_for_books (operation_type text, trigger_time timestamp, like books);\n").and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
@@ -119,7 +119,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:exec).with(result).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").times.and_call_original
+      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
       described_class.setup_trigger!
       expect(described_class.audit_table).to eq("pgosc_audit_table_for_books")
@@ -236,7 +236,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "creates the shadow table matching parent table" do
-      expect(client.connection).to receive(:exec).with("BEGIN;").times.and_call_original
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_shadow_table_for_books (LIKE books);\n").and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
@@ -303,7 +303,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
           autovacuum_enabled = false, toast.autovacuum_enabled = false
         );
       SQL
-      expect(client.connection).to receive(:exec).with("BEGIN;").times.and_call_original
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:exec).with(query).and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
@@ -398,7 +398,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "succesfully" do
-      expect(client.connection).to receive(:exec).with("BEGIN;").times.and_call_original
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:exec).with("ALTER TABLE pgosc_shadow_table_for_books ADD COLUMN purchased boolean DEFAULT false").and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
@@ -424,6 +424,46 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                                 "column_position" => 6,
                                 "type" => "timestamp without time zone" },
                               { "column_name" => "purchased", "column_position" => 7, "type" => "boolean" },
+                            ])
+    end
+  end
+
+  describe ".add_indexes_to_shadow_table!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      described_class.setup!(client_options)
+
+      cleanup_dummy_tables(client)
+      create_dummy_table(client)
+
+      described_class.setup_audit_table!
+      described_class.setup_shadow_table!
+    end
+
+    it "succesfully" do
+      index_query = <<~SQL
+        SELECT indexdef, schemaname
+        FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = \'#{client.table}\'
+      SQL
+
+      expect(client.connection).to receive(:exec).with("BEGIN;").exactly(4).times.and_call_original
+      expect(client.connection).to receive(:exec).with(index_query).and_call_original
+      expect(client.connection).to receive(:exec).with("CREATE UNIQUE INDEX books_pkey_pgosc ON public.pgosc_shadow_table_for_books USING btree (user_id)").and_call_original
+      expect(client.connection).to receive(:exec).with("CREATE UNIQUE INDEX books_username_key_pgosc ON public.pgosc_shadow_table_for_books USING btree (username)").and_call_original
+      expect(client.connection).to receive(:exec).with("CREATE UNIQUE INDEX books_email_key_pgosc ON public.pgosc_shadow_table_for_books USING btree (email)").and_call_original
+      expect(client.connection).to receive(:exec).with("COMMIT;").exactly(4).and_call_original
+
+      described_class.add_indexes_to_shadow_table!
+      RSpec::Mocks.space.reset_all
+
+      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, described_class.shadow_table)
+      expect(columns).to eq([
+                              "CREATE UNIQUE INDEX books_pkey_pgosc ON pgosc_shadow_table_for_books USING btree (user_id)",
+                              "CREATE UNIQUE INDEX books_username_key_pgosc ON pgosc_shadow_table_for_books USING btree (username)",
+                              "CREATE UNIQUE INDEX books_email_key_pgosc ON pgosc_shadow_table_for_books USING btree (email)",
                             ])
     end
   end

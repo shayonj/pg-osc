@@ -13,7 +13,7 @@ jobs:
         environment:
           POSTGRES_USER: jamesbond
           POSTGRES_DB: postgres
- 
+
     steps:
       - checkout
  
@@ -27,9 +27,11 @@ jobs:
       - run:
           name: Install dependencies
           command: bundle check --path=vendor/bundle || bundle install --path=vendor/bundle --jobs 4 --retry 3
- 
-      - run: sudo apt install -y postgresql-client || true
- 
+
+      - run: apt-get update
+      - run: apt-get install -y sudo
+      - run: sudo apt install -y postgresql-client
+
       # Store bundle cache
       - save_cache:
           key: pg-online-schema-change-{{ checksum "Gemfile.lock" }}

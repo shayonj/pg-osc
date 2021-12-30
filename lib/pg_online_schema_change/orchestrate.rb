@@ -122,7 +122,7 @@ module PgOnlineSchemaChange
 
       def add_indexes_to_shadow_table!
         PgOnlineSchemaChange.logger.info("Adding indexes to the shadow table")
-        indexes = Query.get_indexes_for(client, shadow_table)
+        indexes = Query.get_updated_indexes_for(client, shadow_table)
 
         indexes.each do |index|
           Query.run(client.connection, index)

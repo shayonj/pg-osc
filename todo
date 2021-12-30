@@ -3,3 +3,4 @@
 # TODO: Potential to refactor Orchestrator class and extract some functions into a utility/helper class
 # TODO: Setup CI
 # TODO: Release process - gem and dockerfile
+# TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name
