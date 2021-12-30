@@ -1,7 +1,10 @@
 module PgOnlineSchemaChange
   class Orchestrate
     class << self
-      attr_accessor :client, :audit_table, :shadow_table, :primary_key
+      PULL_BATCH_COUNT = 1000
+      DELTA_COUNT = 20
+
+      attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns
 
       def setup!(options)
         @client = Client.new(options)
@@ -109,6 +112,8 @@ module PgOnlineSchemaChange
         PgOnlineSchemaChange.logger.info("Copying contents onto on shadow table from parent table...",
                                          { shadow_table: shadow_table, parent_table: client.table })
         columns = Query.table_columns(client).map { |entry| entry["column_name"] }.join(", ")
+        @parent_table_columns = columns
+
         sql = <<~SQL
           INSERT INTO #{shadow_table}
           SELECT #{columns}
@@ -133,7 +138,65 @@ module PgOnlineSchemaChange
         end
       end
 
+      # TODO: Hold access share lock
+      # This, picks PULL_BATCH_COUNT rows by primary key from audit_table,
+      # replays it on the shadow_table. Once the batch is done,
+      # it them deletes those PULL_BATCH_COUNT rows from audit_table. Then, pull another batch,
+      # check if the row count matches PULL_BATCH_COUNT, if so swap, otherwise
+      # continue. Swap because, the row count is minimal to replay them altogether
+      # and perform the rename while holding an access exclusive lock for minimal time.
       def replay_and_swap!
+        loop do
+          sleep 0.5
+
+          select_query = <<~SQL
+            SELECT * FROM #{audit_table} ORDER BY #{primary_key} LIMIT #{PULL_BATCH_COUNT};
+          SQL
+
+          rows = []
+          Query.run(client.connection, statement) { |result| rows = result }
+
+          raise CountBelowDelta if rows.count <= DELTA_COUNT
+
+          replay_data!(rows)
+        end
+      rescue CountBelowDelta
+        PgOnlineSchemaChange.logger.info("Remaining rows below delta count, proceeding towards swap")
+
+        swap!
+      end
+
+      def replay_data!(rows)
+        to_be_deleted_rows = []
+
+        rows.each do |row|
+          case row["operation_type"]
+          when "INSERT"
+            values = @parent_table_columns.map { |column| row[column] }
+
+            sql = <<~SQL
+              INSERT INTO \"#{shadow_table}\" (#{@parent_table_columns})
+              VALUES (#{values});
+            SQL
+
+            Query.run(client.connection, sql)
+
+            to_be_deleted_rows << row[primary_key]
+          when "UPDATE"
+            to_be_deleted_rows << row[primary_key]
+          when "DELETE"
+            to_be_deleted_rows << row[primary_key]
+          end
+        end
+
+        # Delete items from the audit now that are replayed
+        delete_query = <<~SQL
+          DELETE FROM #{audit_table} WHERE id IN (#{to_be_deleted_rows.join(",")})
+        SQL
+        Query.run(client.connection, delete_query)
+      end
+
+      def swap!
       end
 
       def drop_and_cleanup!
