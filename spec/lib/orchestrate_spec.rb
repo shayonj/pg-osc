@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "pry"
 RSpec.describe PgOnlineSchemaChange::Orchestrate do
   describe ".setup!" do
     it "sets the defaults" do
@@ -420,6 +421,114 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                                 "type" => "timestamp without time zone" },
                               { "column_name" => "purchased", "column_position" => 7, "type" => "boolean" },
                             ])
+      expect(described_class.dropped_columns).to eq([])
+      expect(described_class.renamed_columns).to eq([])
+    end
+
+    describe "dropped column" do
+      let(:client) do
+        options = client_options.to_h.merge(
+          alter_statement: "ALTER TABLE books DROP \"email\";",
+        )
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      before do
+        allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+        described_class.setup!(client_options)
+
+        cleanup_dummy_tables(client)
+        create_dummy_table(client)
+
+        described_class.setup_audit_table!
+        described_class.setup_shadow_table!
+      end
+
+      it "succesfully" do
+        expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
+        expect(client.connection).to receive(:exec).with("ALTER TABLE pgosc_shadow_table_for_books DROP email").and_call_original
+        expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+
+        described_class.run_alter_statement!
+        RSpec::Mocks.space.reset_all
+
+        columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.shadow_table)
+        expect(columns).to eq([
+                                { "column_name" => "user_id", "column_position" => 1, "type" => "integer" },
+                                { "column_name" => "username",
+                                  "column_position" => 2,
+                                  "type" => "character varying(50)" },
+                                { "column_name" => "password",
+                                  "column_position" => 3,
+                                  "type" => "character varying(50)" },
+                                { "column_name" => "created_on",
+                                  "column_position" => 5,
+                                  "type" => "timestamp without time zone" },
+                                { "column_name" => "last_login",
+                                  "column_position" => 6,
+                                  "type" => "timestamp without time zone" },
+                              ])
+        expect(described_class.dropped_columns).to eq(["email"])
+        expect(described_class.renamed_columns).to eq([])
+      end
+    end
+
+    describe "renamed column" do
+      let(:client) do
+        options = client_options.to_h.merge(
+          alter_statement: "ALTER TABLE books RENAME COLUMN email TO new_email;",
+        )
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      before do
+        allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+        described_class.setup!(client_options)
+
+        cleanup_dummy_tables(client)
+        create_dummy_table(client)
+
+        described_class.setup_audit_table!
+        described_class.setup_shadow_table!
+      end
+
+      it "succesfully" do
+        expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
+        expect(client.connection).to receive(:exec).with("ALTER TABLE pgosc_shadow_table_for_books RENAME COLUMN email TO new_email").and_call_original
+        expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+
+        described_class.run_alter_statement!
+        RSpec::Mocks.space.reset_all
+
+        columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.shadow_table)
+        expect(columns).to eq([
+                                { "column_name" => "user_id", "column_position" => 1, "type" => "integer" },
+                                { "column_name" => "username",
+                                  "column_position" => 2,
+                                  "type" => "character varying(50)" },
+                                { "column_name" => "password",
+                                  "column_position" => 3,
+                                  "type" => "character varying(50)" },
+                                { "column_name" => "new_email",
+                                  "column_position" => 4,
+                                  "type" => "character varying(255)" },
+                                { "column_name" => "created_on",
+                                  "column_position" => 5,
+                                  "type" => "timestamp without time zone" },
+                                { "column_name" => "last_login",
+                                  "column_position" => 6,
+                                  "type" => "timestamp without time zone" },
+                              ])
+        expect(described_class.dropped_columns).to eq([])
+        expect(described_class.renamed_columns).to eq([
+                                                        {
+                                                          old_name: "email",
+                                                          new_name: "new_email",
+                                                        },
+                                                      ])
+      end
     end
   end
 
@@ -646,9 +755,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         end
         expect(audit_rows.count).to eq(0)
       end
-    end
-
-    describe "when alter removes a column" do
     end
   end
 end

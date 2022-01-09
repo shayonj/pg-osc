@@ -4,7 +4,8 @@ module PgOnlineSchemaChange
       PULL_BATCH_COUNT = 1000
       DELTA_COUNT = 20
 
-      attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns
+      attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns, :dropped_columns,
+                    :renamed_columns
 
       def setup!(options)
         @client = Client.new(options)
@@ -126,6 +127,10 @@ module PgOnlineSchemaChange
 
       def run_alter_statement!
         statement = Query.alter_statement_for(client, shadow_table)
+
+        @dropped_columns = Query.dropped_columns(client)
+        @renamed_columns = Query.renamed_columns(client)
+
         PgOnlineSchemaChange.logger.info("Running alter statement on shadow table",
                                          { shadow_table: shadow_table, parent_table: client.table })
         Query.run(client.connection, statement)
@@ -175,17 +180,19 @@ module PgOnlineSchemaChange
           case row["operation_type"]
           when "INSERT"
             # TODO: HANDLE COLUMN IF ITS REMOVED, RENAMED FROM ALTER STATEMENT
+            # parent_table_columns.delete("email")
+
             values = parent_table_columns.map { |column| "'#{row[column]}'" }.join(",")
 
             sql = <<~SQL
-              INSERT INTO #{shadow_table} (#{parent_table_columns.join(",")})
+              INSERT INTO #{shadow_table} (#{parent_table_columns.join(',')})
               VALUES (#{values});
             SQL
             Query.run(client.connection, sql)
 
             to_be_deleted_rows << row[primary_key]
           when "UPDATE"
-            # TODO: SKIP COLUMN IF ITS REMOVED FROM ALTER STATEMENT
+            # TODO: HANDLE COLUMN IF ITS REMOVED, RENAMED FROM ALTER STATEMENT
             set_values = parent_table_columns.map do |column|
               "#{column} = '#{row[column]}'"
             end.join(",")
@@ -210,7 +217,7 @@ module PgOnlineSchemaChange
         # Delete items from the audit now that are replayed
         if rows.count >= 1
           delete_query = <<~SQL
-            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
+            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(',')})
           SQL
           Query.run(client.connection, delete_query)
         end

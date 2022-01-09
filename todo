@@ -5,3 +5,4 @@
 # TODO: Release process - gem and dockerfile
 # TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name
 # TODO: SUPPORT TABLE RENAME?
+# TODO: Ensure all alter statement(s) belong to the same table
