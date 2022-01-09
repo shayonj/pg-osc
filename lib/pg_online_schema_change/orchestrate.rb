@@ -3,9 +3,15 @@ module PgOnlineSchemaChange
     class << self
       PULL_BATCH_COUNT = 1000
       DELTA_COUNT = 20
+      RESERVED_COLUMNS = %w[operation_type trigger_time].freeze
 
       attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns, :dropped_columns,
                     :renamed_columns
+
+      def init
+        @dropped_columns = []
+        @renamed_columns = []
+      end
 
       def setup!(options)
         @client = Client.new(options)
@@ -127,18 +133,17 @@ module PgOnlineSchemaChange
 
       def run_alter_statement!
         statement = Query.alter_statement_for(client, shadow_table)
-
-        @dropped_columns = Query.dropped_columns(client)
-        @renamed_columns = Query.renamed_columns(client)
-
         PgOnlineSchemaChange.logger.info("Running alter statement on shadow table",
                                          { shadow_table: shadow_table, parent_table: client.table })
         Query.run(client.connection, statement)
+
+        @dropped_columns = Query.dropped_columns(client)
+        @renamed_columns = Query.renamed_columns(client)
       end
 
       def add_indexes_to_shadow_table!
         PgOnlineSchemaChange.logger.info("Adding indexes to the shadow table")
-        indexes = Query.get_updated_indexes_for(client, shadow_table)
+        indexes = Query.get_updated_indexes_for(client, shadow_table, dropped_columns, renamed_columns)
 
         indexes.each do |index|
           Query.run(client.connection, index)
@@ -175,26 +180,44 @@ module PgOnlineSchemaChange
 
       def replay_data!(rows)
         to_be_deleted_rows = []
-
         rows.each do |row|
+          new_row = row.dup
+
+          # Remove audit table cols, since we will be
+          # re-mapping them for inserts and updates
+          RESERVED_COLUMNS.each do |col|
+            new_row.delete(col)
+          end
+
+          if dropped_columns.any?
+            dropped_columns.each do |dropped_column|
+              new_row.delete(dropped_column)
+            end
+          end
+
+          if renamed_columns.any?
+            renamed_columns.each do |object|
+              value = new_row.delete(object[:old_name])
+              new_row[object[:new_name]] = value
+            end
+          end
+
+          new_row = new_row.compact
+
           case row["operation_type"]
           when "INSERT"
-            # TODO: HANDLE COLUMN IF ITS REMOVED, RENAMED FROM ALTER STATEMENT
-            # parent_table_columns.delete("email")
-
-            values = parent_table_columns.map { |column| "'#{row[column]}'" }.join(",")
+            values = new_row.map { |_, val| "'#{val}'" }.join(",")
 
             sql = <<~SQL
-              INSERT INTO #{shadow_table} (#{parent_table_columns.join(',')})
+              INSERT INTO #{shadow_table} (#{new_row.keys.join(",")})
               VALUES (#{values});
             SQL
             Query.run(client.connection, sql)
 
-            to_be_deleted_rows << row[primary_key]
+            to_be_deleted_rows << new_row[primary_key]
           when "UPDATE"
-            # TODO: HANDLE COLUMN IF ITS REMOVED, RENAMED FROM ALTER STATEMENT
-            set_values = parent_table_columns.map do |column|
-              "#{column} = '#{row[column]}'"
+            set_values = new_row.map do |column, value|
+              "#{column} = '#{value}'"
             end.join(",")
 
             sql = <<~SQL
@@ -215,9 +238,9 @@ module PgOnlineSchemaChange
         end
 
         # Delete items from the audit now that are replayed
-        if rows.count >= 1
+        if to_be_deleted_rows.count >= 1
           delete_query = <<~SQL
-            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(',')})
+            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
           SQL
           Query.run(client.connection, delete_query)
         end

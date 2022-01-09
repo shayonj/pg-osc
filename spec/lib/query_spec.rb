@@ -168,11 +168,53 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(client.connection).to receive(:exec).with(query).and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
-      result = described_class.get_updated_indexes_for(client, "new_books")
+      result = described_class.get_updated_indexes_for(client, "new_books", [], [])
       expect(result).to eq([
                              "CREATE UNIQUE INDEX books_pkey_pgosc ON public.new_books USING btree (user_id)",
                              "CREATE UNIQUE INDEX books_username_key_pgosc ON public.new_books USING btree (username)",
                              "CREATE UNIQUE INDEX books_email_key_pgosc ON public.new_books USING btree (email)",
+                           ])
+    end
+
+    it "returns index statements for shadow table with altered index name and skips dropped columns" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+
+      query = <<~SQL
+        SELECT indexdef, schemaname
+        FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = 'books'
+      SQL
+
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:exec).with(query).and_call_original
+      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+
+      result = described_class.get_updated_indexes_for(client, "new_books", ["email"], [])
+      expect(result).to eq([
+                             "CREATE UNIQUE INDEX books_pkey_pgosc ON public.new_books USING btree (user_id)",
+                             "CREATE UNIQUE INDEX books_username_key_pgosc ON public.new_books USING btree (username)",
+                           ])
+    end
+
+    it "returns index statements for shadow table with altered index name and handles renamed columns" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+
+      query = <<~SQL
+        SELECT indexdef, schemaname
+        FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = 'books'
+      SQL
+
+      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:exec).with(query).and_call_original
+      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+
+      result = described_class.get_updated_indexes_for(client, "new_books", [],
+                                                       [{ old_name: "email", new_name: "new_email" }])
+      expect(result).to eq([
+                             "CREATE UNIQUE INDEX books_pkey_pgosc ON public.new_books USING btree (user_id)",
+                             "CREATE UNIQUE INDEX books_username_key_pgosc ON public.new_books USING btree (username)",
+                             "CREATE UNIQUE INDEX books_email_key_pgosc ON public.new_books USING btree (new_email)",
                            ])
     end
   end
