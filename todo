@@ -1,8 +1,11 @@
-# TODO: add schema.table_name to all queries. everything assumes its in the public schema
+# TODO: add client.schema to all queries. everything assumes its in the public schema
 # TODO: support dry run mode
 # TODO: Potential to refactor Orchestrator class and extract some functions into a utility/helper class
-# TODO: Setup CI
+# TODO: Refactor class level vars on Orchestrate. Might need some form of "Store".
+# TODO: Refactor specs. Most are behaving as integration specs. Separate into unit/ and integration/ for starters.
 # TODO: Release process - gem and dockerfile
-# TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name
-# TODO: SUPPORT TABLE RENAME?
 # TODO: Ensure all alter statement(s) belong to the same table
+# TODO: BEGIN ISOLATION LEVEL SERIALIZABLE for copying rows
+# TODO: SUPPORT TABLE RENAME?
+# TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name
+# TODO: Could hold access share lock on clien.table (primary table) to avoid any DDLs

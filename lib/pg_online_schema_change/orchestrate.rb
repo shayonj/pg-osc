@@ -6,7 +6,7 @@ module PgOnlineSchemaChange
       RESERVED_COLUMNS = %w[operation_type trigger_time].freeze
 
       attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns, :dropped_columns,
-                    :renamed_columns
+                    :renamed_columns, :old_primary_table
 
       def init
         @dropped_columns = []
@@ -36,7 +36,7 @@ module PgOnlineSchemaChange
         copy_data!
         run_alter_statement!
         add_indexes_to_shadow_table!
-        # replay_and_swap!
+        replay_and_swap!
         # run_analyze!
         # drop_and_cleanup!
       rescue StandardError => e
@@ -150,7 +150,6 @@ module PgOnlineSchemaChange
         end
       end
 
-      # TODO: Hold access share lock
       # This, picks PULL_BATCH_COUNT rows by primary key from audit_table,
       # replays it on the shadow_table. Once the batch is done,
       # it them deletes those PULL_BATCH_COUNT rows from audit_table. Then, pull another batch,
@@ -166,7 +165,7 @@ module PgOnlineSchemaChange
           SQL
 
           rows = []
-          Query.run(client.connection, statement) { |result| rows = result.map { |row| row } }
+          Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
 
           raise CountBelowDelta if rows.count <= DELTA_COUNT
 
@@ -247,6 +246,18 @@ module PgOnlineSchemaChange
       end
 
       def swap!
+        @old_primary_table = "pgosc_old_primary_table_#{client.table}"
+
+        sql = <<~SQL
+          LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
+          ALTER TABLE #{client.table} RENAME to #{old_primary_table};
+          ALTER TABLE #{shadow_table} RENAME to #{client.table};
+        SQL
+
+        Query.run(client.connection, sql)
+      end
+
+      def run_analyze!
       end
 
       def drop_and_cleanup!

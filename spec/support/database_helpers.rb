@@ -46,6 +46,7 @@ module DatabaseHelpers
     client ||= PgOnlineSchemaChange::Client.new(client_options)
     PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_audit_table_for_books;")
     PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_shadow_table_for_books;")
+    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_old_primary_table_books;")
     PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS books;")
   end
 end

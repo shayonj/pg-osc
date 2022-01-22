@@ -1041,4 +1041,76 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       end
     end
   end
+
+  describe ".swap!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      described_class.setup!(client_options)
+
+      cleanup_dummy_tables(client)
+      create_dummy_table(client)
+      ingest_dummy_data_into_dummy_table(client)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.disable_vacuum!
+      described_class.copy_data!
+      described_class.run_alter_statement!
+      described_class.add_indexes_to_shadow_table!
+
+      query = <<~SQL
+        INSERT INTO "books"("user_id", "username", "password", "email", "created_on", "last_login")
+        VALUES(10, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+      SQL
+      PgOnlineSchemaChange::Query.run(client.connection, query)
+      # Fetch rows
+      select_query = <<~SQL
+        SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
+      SQL
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
+
+      described_class.replay_data!(rows)
+    end
+
+    it "sucessfully renames the tables" do
+      sql = <<~SQL
+        LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE;
+        ALTER TABLE books RENAME to pgosc_old_primary_table_books;
+        ALTER TABLE pgosc_shadow_table_for_books RENAME to books;
+      SQL
+
+      described_class.swap!
+
+      # Fetch rows from the original primary table
+      select_query = <<~SQL
+        SELECT * FROM pgosc_old_primary_table_books;
+      SQL
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
+      expect(rows.count).to eq(4)
+
+      # Fetch rows from the renamed table
+      select_query = <<~SQL
+        SELECT * FROM books;
+      SQL
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
+      expect(rows.count).to eq(4)
+
+      # confirm indexes on newly renamed table
+      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
+      expect(columns).to eq([
+                              "CREATE UNIQUE INDEX books_pkey_pgosc ON books USING btree (user_id)",
+                              "CREATE UNIQUE INDEX books_username_key_pgosc ON books USING btree (username)",
+                              "CREATE UNIQUE INDEX books_email_key_pgosc ON books USING btree (email)",
+                            ])
+    end
+
+    skip "sucessfully renames the tables and transfers foreign keys" do
+    end
+  end
 end
