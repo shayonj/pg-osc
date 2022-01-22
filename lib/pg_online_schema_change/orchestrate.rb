@@ -22,6 +22,8 @@ module PgOnlineSchemaChange
         SQL
 
         Query.run(client.connection, sql)
+        # install functions
+        Query.run(client.connection, FIX_SERIAL_SEQUENCE)
       end
 
       def run!(options)
@@ -29,13 +31,13 @@ module PgOnlineSchemaChange
 
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
+        setup_functions!
         setup_audit_table!
         setup_trigger!
         setup_shadow_table!
         disable_vacuum!
         copy_data!
         run_alter_statement!
-        add_indexes_to_shadow_table!
         replay_and_swap!
         # run_analyze!
         # drop_and_cleanup!
@@ -52,7 +54,7 @@ module PgOnlineSchemaChange
         PgOnlineSchemaChange.logger.info("Setting up audit table", { audit_table: @audit_table })
 
         sql = <<~SQL
-          CREATE TABLE #{@audit_table} (operation_type text, trigger_time timestamp, like #{client.table});
+          CREATE TABLE #{@audit_table} (operation_type text, trigger_time timestamp, LIKE #{client.table});
         SQL
 
         Query.run(client.connection, sql)
@@ -92,9 +94,12 @@ module PgOnlineSchemaChange
         PgOnlineSchemaChange.logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
         sql = <<~SQL
-          CREATE TABLE #{shadow_table} (LIKE #{client.table});
+          CREATE TABLE #{shadow_table} (LIKE #{client.table} INCLUDING ALL);
         SQL
         Query.run(client.connection, sql)
+
+        # update serials
+        Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table}', '#{shadow_table}');")
       end
 
       # Disabling vacuum to avoid any issues during the process
@@ -139,15 +144,6 @@ module PgOnlineSchemaChange
 
         @dropped_columns = Query.dropped_columns(client)
         @renamed_columns = Query.renamed_columns(client)
-      end
-
-      def add_indexes_to_shadow_table!
-        PgOnlineSchemaChange.logger.info("Adding indexes to the shadow table")
-        indexes = Query.get_updated_indexes_for(client, shadow_table, dropped_columns, renamed_columns)
-
-        indexes.each do |index|
-          Query.run(client.connection, index)
-        end
       end
 
       # This, picks PULL_BATCH_COUNT rows by primary key from audit_table,

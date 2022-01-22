@@ -3,13 +3,14 @@
 require "pry"
 RSpec.describe PgOnlineSchemaChange::Orchestrate do
   describe ".setup!" do
-    it "sets the defaults" do
+    it "sets the defaults & functions" do
       client = PgOnlineSchemaChange::Client.new(client_options)
       expect(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
-      expect(client.connection).to receive(:exec).with("BEGIN;").exactly(3).times.and_call_original
+      expect(client.connection).to receive(:exec).with("BEGIN;").exactly(5).times.and_call_original
       expect(client.connection).to receive(:exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\n").and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").exactly(3).times.and_call_original
+      expect(client.connection).to receive(:exec).with(FIX_SERIAL_SEQUENCE).and_call_original
+      expect(client.connection).to receive(:exec).with("COMMIT;").exactly(5).times.and_call_original
       expect(client.connection).to receive(:exec).with("SHOW statement_timeout;").and_call_original
       expect(client.connection).to receive(:exec).with("SHOW client_min_messages;").and_call_original
 
@@ -28,6 +29,21 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
           expect(row).to eq({ "client_min_messages" => "warning" })
         end
       end
+      RSpec::Mocks.space.reset_all
+
+      functions = <<~SQL
+        SELECT routine_name#{" "}
+        FROM information_schema.routines#{" "}
+        WHERE routine_type='FUNCTION'#{" "}
+          AND specific_schema='public'
+          AND routine_name='fix_serial_sequence';
+      SQL
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, functions) do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows.count).to eq(1)
     end
   end
 
@@ -48,7 +64,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "creates the audit table with columns from parent table and additional identifiers" do
       expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_audit_table_for_books (operation_type text, trigger_time timestamp, like books);\n").and_call_original
+      expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_audit_table_for_books (operation_type text, trigger_time timestamp, LIKE books);\n").and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
       described_class.setup_audit_table!
@@ -135,12 +151,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         where n.nspname not in ('pg_catalog', 'information_schema');
       SQL
 
+      rows = []
       PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        expect(result.count).to eq(1)
-        result.each do |row|
-          expect(row).to eq({ "oid" => "primary_to_audit_table_trigger()" })
-        end
+        rows = result.map { |row| row }
       end
+      row = rows.find { |row| row["oid"] == "primary_to_audit_table_trigger()" }
+      expect(row).to eq({ "oid" => "primary_to_audit_table_trigger()" })
 
       query = <<~SQL
         select tgname
@@ -235,7 +251,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "creates the shadow table matching parent table" do
       expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_shadow_table_for_books (LIKE books);\n").and_call_original
+      expect(client.connection).to receive(:exec).with("SELECT fix_serial_sequence('books', 'pgosc_shadow_table_for_books');").and_call_original
+      expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_shadow_table_for_books (LIKE books INCLUDING ALL);\n").and_call_original
       expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
 
       described_class.setup_shadow_table!
@@ -260,6 +277,11 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                                 "column_position" => 6,
                                 "type" => "timestamp without time zone" },
                             ])
+
+      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "pgosc_shadow_table_for_books")
+      expect(columns).to eq(["CREATE UNIQUE INDEX pgosc_shadow_table_for_books_pkey ON pgosc_shadow_table_for_books USING btree (user_id)",
+                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_username_key ON pgosc_shadow_table_for_books USING btree (username)",
+                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_email_key ON pgosc_shadow_table_for_books USING btree (email)"])
     end
 
     it "creates the shadow table matching parent table with no data" do
@@ -532,46 +554,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
   end
 
-  describe ".add_indexes_to_shadow_table!" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
-
-    before do
-      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      described_class.setup!(client_options)
-
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
-
-      described_class.setup_audit_table!
-      described_class.setup_shadow_table!
-    end
-
-    it "succesfully" do
-      index_query = <<~SQL
-        SELECT indexdef, schemaname
-        FROM pg_indexes
-        WHERE schemaname = 'public' AND tablename = \'#{client.table}\'
-      SQL
-
-      expect(client.connection).to receive(:exec).with("BEGIN;").exactly(4).times.and_call_original
-      expect(client.connection).to receive(:exec).with(index_query).and_call_original
-      expect(client.connection).to receive(:exec).with("CREATE UNIQUE INDEX books_pkey_pgosc ON public.pgosc_shadow_table_for_books USING btree (user_id)").and_call_original
-      expect(client.connection).to receive(:exec).with("CREATE UNIQUE INDEX books_username_key_pgosc ON public.pgosc_shadow_table_for_books USING btree (username)").and_call_original
-      expect(client.connection).to receive(:exec).with("CREATE UNIQUE INDEX books_email_key_pgosc ON public.pgosc_shadow_table_for_books USING btree (email)").and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").exactly(4).and_call_original
-
-      described_class.add_indexes_to_shadow_table!
-      RSpec::Mocks.space.reset_all
-
-      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, described_class.shadow_table)
-      expect(columns).to eq([
-                              "CREATE UNIQUE INDEX books_pkey_pgosc ON pgosc_shadow_table_for_books USING btree (user_id)",
-                              "CREATE UNIQUE INDEX books_username_key_pgosc ON pgosc_shadow_table_for_books USING btree (username)",
-                              "CREATE UNIQUE INDEX books_email_key_pgosc ON pgosc_shadow_table_for_books USING btree (email)",
-                            ])
-    end
-  end
-
   describe ".replay_data!" do
     describe "when alter adds a column" do
       let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
@@ -590,7 +572,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         described_class.disable_vacuum!
         described_class.copy_data!
         described_class.run_alter_statement!
-        described_class.add_indexes_to_shadow_table!
       end
 
       it "replays INSERT data and cleanups the rows in audit table after" do
@@ -781,8 +762,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         described_class.disable_vacuum!
         described_class.copy_data!
         described_class.run_alter_statement!
-
-        described_class.add_indexes_to_shadow_table!
       end
 
       it "replays INSERT data" do
@@ -921,8 +900,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         described_class.disable_vacuum!
         described_class.copy_data!
         described_class.run_alter_statement!
-
-        described_class.add_indexes_to_shadow_table!
       end
 
       it "replays INSERT data" do
@@ -1059,7 +1036,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.disable_vacuum!
       described_class.copy_data!
       described_class.run_alter_statement!
-      described_class.add_indexes_to_shadow_table!
 
       query = <<~SQL
         INSERT INTO "books"("user_id", "username", "password", "email", "created_on", "last_login")
@@ -1103,11 +1079,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       # confirm indexes on newly renamed table
       columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
-      expect(columns).to eq([
-                              "CREATE UNIQUE INDEX books_pkey_pgosc ON books USING btree (user_id)",
-                              "CREATE UNIQUE INDEX books_username_key_pgosc ON books USING btree (username)",
-                              "CREATE UNIQUE INDEX books_email_key_pgosc ON books USING btree (email)",
-                            ])
+      expect(columns).to eq(["CREATE UNIQUE INDEX pgosc_shadow_table_for_books_pkey ON books USING btree (user_id)",
+                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_username_key ON books USING btree (username)",
+                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_email_key ON books USING btree (email)"])
     end
 
     skip "sucessfully renames the tables and transfers foreign keys" do
