@@ -11,6 +11,7 @@ require "pg_online_schema_change/orchestrate"
 
 module PgOnlineSchemaChange
   class Error < StandardError; end
+  class CountBelowDelta < StandardError; end
 
   def self.logger=(verbose)
     @@logger ||= begin

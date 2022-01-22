@@ -1,7 +1,17 @@
 module PgOnlineSchemaChange
   class Orchestrate
     class << self
-      attr_accessor :client, :audit_table, :shadow_table, :primary_key
+      PULL_BATCH_COUNT = 1000
+      DELTA_COUNT = 20
+      RESERVED_COLUMNS = %w[operation_type trigger_time].freeze
+
+      attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns, :dropped_columns,
+                    :renamed_columns, :old_primary_table
+
+      def init
+        @dropped_columns = []
+        @renamed_columns = []
+      end
 
       def setup!(options)
         @client = Client.new(options)
@@ -16,6 +26,7 @@ module PgOnlineSchemaChange
 
       def run!(options)
         setup!(options)
+
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
         setup_audit_table!
@@ -25,7 +36,7 @@ module PgOnlineSchemaChange
         copy_data!
         run_alter_statement!
         add_indexes_to_shadow_table!
-        # replay_and_swap!
+        replay_and_swap!
         # run_analyze!
         # drop_and_cleanup!
       rescue StandardError => e
@@ -108,7 +119,10 @@ module PgOnlineSchemaChange
       def copy_data!
         PgOnlineSchemaChange.logger.info("Copying contents onto on shadow table from parent table...",
                                          { shadow_table: shadow_table, parent_table: client.table })
-        columns = Query.table_columns(client).map { |entry| entry["column_name"] }.join(", ")
+
+        @parent_table_columns = Query.table_columns(client).map { |entry| entry["column_name"] }
+        columns = parent_table_columns.join(", ")
+
         sql = <<~SQL
           INSERT INTO #{shadow_table}
           SELECT #{columns}
@@ -122,24 +136,134 @@ module PgOnlineSchemaChange
         PgOnlineSchemaChange.logger.info("Running alter statement on shadow table",
                                          { shadow_table: shadow_table, parent_table: client.table })
         Query.run(client.connection, statement)
+
+        @dropped_columns = Query.dropped_columns(client)
+        @renamed_columns = Query.renamed_columns(client)
       end
 
       def add_indexes_to_shadow_table!
         PgOnlineSchemaChange.logger.info("Adding indexes to the shadow table")
-        indexes = Query.get_updated_indexes_for(client, shadow_table)
+        indexes = Query.get_updated_indexes_for(client, shadow_table, dropped_columns, renamed_columns)
 
         indexes.each do |index|
           Query.run(client.connection, index)
         end
       end
 
+      # This, picks PULL_BATCH_COUNT rows by primary key from audit_table,
+      # replays it on the shadow_table. Once the batch is done,
+      # it them deletes those PULL_BATCH_COUNT rows from audit_table. Then, pull another batch,
+      # check if the row count matches PULL_BATCH_COUNT, if so swap, otherwise
+      # continue. Swap because, the row count is minimal to replay them altogether
+      # and perform the rename while holding an access exclusive lock for minimal time.
       def replay_and_swap!
+        loop do
+          sleep 0.5
+
+          select_query = <<~SQL
+            SELECT * FROM #{audit_table} ORDER BY #{primary_key} LIMIT #{PULL_BATCH_COUNT};
+          SQL
+
+          rows = []
+          Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
+
+          raise CountBelowDelta if rows.count <= DELTA_COUNT
+
+          replay_data!(rows)
+        end
+      rescue CountBelowDelta
+        PgOnlineSchemaChange.logger.info("Remaining rows below delta count, proceeding towards swap")
+
+        swap!
+      end
+
+      def replay_data!(rows)
+        to_be_deleted_rows = []
+        rows.each do |row|
+          new_row = row.dup
+
+          # Remove audit table cols, since we will be
+          # re-mapping them for inserts and updates
+          RESERVED_COLUMNS.each do |col|
+            new_row.delete(col)
+          end
+
+          if dropped_columns.any?
+            dropped_columns.each do |dropped_column|
+              new_row.delete(dropped_column)
+            end
+          end
+
+          if renamed_columns.any?
+            renamed_columns.each do |object|
+              value = new_row.delete(object[:old_name])
+              new_row[object[:new_name]] = value
+            end
+          end
+
+          new_row = new_row.compact
+
+          case row["operation_type"]
+          when "INSERT"
+            values = new_row.map { |_, val| "'#{val}'" }.join(",")
+
+            sql = <<~SQL
+              INSERT INTO #{shadow_table} (#{new_row.keys.join(",")})
+              VALUES (#{values});
+            SQL
+            Query.run(client.connection, sql)
+
+            to_be_deleted_rows << new_row[primary_key]
+          when "UPDATE"
+            set_values = new_row.map do |column, value|
+              "#{column} = '#{value}'"
+            end.join(",")
+
+            sql = <<~SQL
+              UPDATE #{shadow_table}
+              SET #{set_values}
+              WHERE #{primary_key}=\'#{row[primary_key]}\';
+            SQL
+            Query.run(client.connection, sql)
+
+            to_be_deleted_rows << row[primary_key]
+          when "DELETE"
+            sql = <<~SQL
+              DELETE FROM #{shadow_table} WHERE #{primary_key}=\'#{row[primary_key]}\';
+            SQL
+            Query.run(client.connection, sql)
+            to_be_deleted_rows << row[primary_key]
+          end
+        end
+
+        # Delete items from the audit now that are replayed
+        if to_be_deleted_rows.count >= 1
+          delete_query = <<~SQL
+            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
+          SQL
+          Query.run(client.connection, delete_query)
+        end
+      end
+
+      def swap!
+        @old_primary_table = "pgosc_old_primary_table_#{client.table}"
+
+        sql = <<~SQL
+          LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
+          ALTER TABLE #{client.table} RENAME to #{old_primary_table};
+          ALTER TABLE #{shadow_table} RENAME to #{client.table};
+        SQL
+
+        Query.run(client.connection, sql)
+      end
+
+      def run_analyze!
       end
 
       def drop_and_cleanup!
       end
 
-      private def primary_key
+      def primary_key
         @primary_key ||= Query.primary_key_for(client, client.table)
       end
     end

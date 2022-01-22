@@ -4,18 +4,23 @@ require "pg"
 module PgOnlineSchemaChange
   class Query
     INDEX_SUFFIX = "_pgosc".freeze
+    DROPPED_COLUMN_TYPE = :AT_DropColumn
+    RENAMED_COLUMN_TYPE = :AT_RenameColumn
 
     class << self
       def alter_statement?(query)
         PgQuery.parse(query).tree.stmts.all? do |statement|
-          statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt)
+          statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt) || statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
         end
       rescue PgQuery::ParseError => e
         false
       end
 
       def table(query)
-        PgQuery.parse(query).tables[0]
+        from_rename_statement = PgQuery.parse(query).tree.stmts.map do |statement|
+          statement.stmt.rename_stmt&.relation&.relname
+        end.compact[0]
+        PgQuery.parse(query).tables[0] || from_rename_statement
       end
 
       def run(connection, query, &block)
@@ -48,9 +53,10 @@ module PgOnlineSchemaChange
         parsed_query = PgQuery.parse(client.alter_statement)
 
         parsed_query.tree.stmts.each do |statement|
-          statement.stmt.alter_table_stmt.relation.relname = shadow_table
-        end
+          statement.stmt.alter_table_stmt.relation.relname = shadow_table if statement.stmt.alter_table_stmt
 
+          statement.stmt.rename_stmt.relation.relname = shadow_table if statement.stmt.rename_stmt
+        end
         parsed_query.deparse
       end
 
@@ -69,22 +75,60 @@ module PgOnlineSchemaChange
         indexes
       end
 
-      def get_updated_indexes_for(client, shadow_table)
+      def dropped_columns(client)
+        PgQuery.parse(client.alter_statement).tree.stmts.map do |statement|
+          next if statement.stmt.alter_table_stmt.nil?
+
+          statement.stmt.alter_table_stmt.cmds.map do |cmd|
+            cmd.alter_table_cmd.name if cmd.alter_table_cmd.subtype == DROPPED_COLUMN_TYPE
+          end
+        end.flatten.compact
+      end
+
+      def renamed_columns(client)
+        PgQuery.parse(client.alter_statement).tree.stmts.map do |statement|
+          next if statement.stmt.rename_stmt.nil?
+
+          {
+            old_name: statement.stmt.rename_stmt.subname,
+            new_name: statement.stmt.rename_stmt.newname,
+          }
+        end.flatten.compact
+      end
+
+      def get_updated_indexes_for(client, shadow_table, dropped_columns, renamed_columns)
         indexes = get_indexes_for(client, client.table)
 
         # Ensure index statements are run against the shadow table
         indexes.map! do |index|
+          index_on_dropped_column = false
           parsed_query = PgQuery.parse(index)
+
           parsed_query.tree.stmts.each do |statement|
+            if dropped_columns.any?
+              index_on_dropped_column = statement.stmt.index_stmt.index_params.any? do |param|
+                dropped_columns.include?(param.index_elem.name)
+              end
+              next if index_on_dropped_column
+            end
+
+            if renamed_columns.any?
+              renamed_columns.each do |object|
+                statement.stmt.index_stmt.index_params.select.each do |param|
+                  param.index_elem.name = object[:new_name] if param.index_elem.name == object[:old_name]
+                end
+              end
+            end
+
             statement.stmt.index_stmt.idxname += INDEX_SUFFIX
             statement.stmt.index_stmt.relation.relname = shadow_table
             statement.stmt.index_stmt.relation.schemaname = client.schema
           end
 
-          parsed_query.deparse
+          parsed_query.deparse unless index_on_dropped_column
         end
 
-        indexes
+        indexes.compact
       end
 
       def primary_key_for(client, table)
