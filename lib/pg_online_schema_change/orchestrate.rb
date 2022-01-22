@@ -31,7 +31,6 @@ module PgOnlineSchemaChange
 
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
-        setup_functions!
         setup_audit_table!
         setup_trigger!
         setup_shadow_table!
