@@ -96,41 +96,6 @@ module PgOnlineSchemaChange
         end.flatten.compact
       end
 
-      def get_updated_indexes_for(client, shadow_table, dropped_columns, renamed_columns)
-        indexes = get_indexes_for(client, client.table)
-
-        # Ensure index statements are run against the shadow table
-        indexes.map! do |index|
-          index_on_dropped_column = false
-          parsed_query = PgQuery.parse(index)
-
-          parsed_query.tree.stmts.each do |statement|
-            if dropped_columns.any?
-              index_on_dropped_column = statement.stmt.index_stmt.index_params.any? do |param|
-                dropped_columns.include?(param.index_elem.name)
-              end
-              next if index_on_dropped_column
-            end
-
-            if renamed_columns.any?
-              renamed_columns.each do |object|
-                statement.stmt.index_stmt.index_params.select.each do |param|
-                  param.index_elem.name = object[:new_name] if param.index_elem.name == object[:old_name]
-                end
-              end
-            end
-
-            statement.stmt.index_stmt.idxname += INDEX_SUFFIX
-            statement.stmt.index_stmt.relation.relname = shadow_table
-            statement.stmt.index_stmt.relation.schemaname = client.schema
-          end
-
-          parsed_query.deparse unless index_on_dropped_column
-        end
-
-        indexes.compact
-      end
-
       def primary_key_for(client, table)
         query = <<~SQL
           SELECT
