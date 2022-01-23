@@ -66,21 +66,69 @@ RSpec.describe PgOnlineSchemaChange::Query do
     it "returns column names" do
       client = PgOnlineSchemaChange::Client.new(client_options)
       described_class.run(client.connection, new_dummy_table_sql)
-
       result = [
-        { "column_name" => "user_id", "column_position" => 1, "type" => "integer" },
-        { "column_name" => "username", "column_position" => 2,
-          "type" => "character varying(50)" },
-        { "column_name" => "password", "column_position" => 3,
-          "type" => "character varying(50)" },
-        { "column_name" => "email", "column_position" => 4, "type" => "character varying(255)" },
-        { "column_name" => "created_on", "column_position" => 5,
-          "type" => "timestamp without time zone" },
-        { "column_name" => "last_login", "column_position" => 6,
-          "type" => "timestamp without time zone" },
+        { "column_name" => "user_id", "type" => "integer", "column_position" => 1 },
+        { "column_name" => "username", "type" => "character varying(50)", "column_position" => 2 },
+        { "column_name" => "seller_id", "type" => "integer", "column_position" => 3 },
+        { "column_name" => "password", "type" => "character varying(50)", "column_position" => 4 },
+        { "column_name" => "email", "type" => "character varying(255)", "column_position" => 5 },
+        { "column_name" => "created_on", "type" => "timestamp without time zone",
+          "column_position" => 6 },
+        { "column_name" => "last_login", "type" => "timestamp without time zone",
+          "column_position" => 7 },
       ]
 
       expect(described_class.table_columns(client)).to eq(result)
+    end
+  end
+
+  describe ".get_all_constraints_for" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      create_dummy_table(client)
+    end
+
+    it "returns all constraints" do
+      result = [
+        { "table_on" => "books", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "books_pkey",
+          "definition" => "PRIMARY KEY (user_id)" },
+        { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
+          "constraint_name" => "books_seller_id_fkey", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+      ]
+      expect(described_class.get_all_constraints_for(client, "books")).to eq(result)
+    end
+  end
+
+  describe ".get_foreign_keys_for" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      create_dummy_table(client)
+    end
+
+    it "returns all constraints" do
+      result = [
+        { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
+          "constraint_name" => "books_seller_id_fkey", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+      ]
+      expect(described_class.get_foreign_keys_for(client, "books")).to eq(result)
+    end
+  end
+
+  describe ".get_primary_keys_for" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      create_dummy_table(client)
+    end
+
+    it "returns all constraints" do
+      result = [
+        { "constraint_name" => "books_pkey", "constraint_type" => "p", "definition" => "PRIMARY KEY (user_id)",
+          "table_from" => "-", "table_on" => "books" },
+      ]
+      expect(described_class.get_primary_keys_for(client, "books")).to eq(result)
     end
   end
 

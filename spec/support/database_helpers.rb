@@ -14,9 +14,17 @@ module DatabaseHelpers
 
   def new_dummy_table_sql
     <<~SQL
+      CREATE TABLE IF NOT EXISTS public.sellers (
+        id serial PRIMARY KEY,
+        name VARCHAR ( 50 ) UNIQUE NOT NULL,
+        created_on TIMESTAMP NOT NULL,
+        last_login TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS public.books (
         user_id serial PRIMARY KEY,
         username VARCHAR ( 50 ) UNIQUE NOT NULL,
+        seller_id SERIAL REFERENCES sellers,
         password VARCHAR ( 50 ) NOT NULL,
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
         created_on TIMESTAMP NOT NULL,
@@ -33,20 +41,27 @@ module DatabaseHelpers
   def ingest_dummy_data_into_dummy_table(client = nil)
     client ||= PgOnlineSchemaChange::Client.new(client_options)
     query = <<~SQL
-      INSERT INTO "books"("user_id", "username", "password", "email", "created_on", "last_login")
+      INSERT INTO "sellers"("name", "created_on", "last_login")
+      VALUES('local shop', 'now()', 'now()');
+
+      INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
       VALUES
-        (2, 'jamesbond2', '007', 'james1@bond.com', 'now()', 'now()'),
-        (3, 'jamesbond3', '008', 'james2@bond.com', 'now()', 'now()'),
-        (4, 'jamesbond4', '009', 'james3@bond.com', 'now()', 'now()');
+        (2, 1, 'jamesbond2', '007', 'james1@bond.com', 'now()', 'now()'),
+        (3, 1, 'jamesbond3', '008', 'james2@bond.com', 'now()', 'now()'),
+        (4, 1, 'jamesbond4', '009', 'james3@bond.com', 'now()', 'now()');
     SQL
     PgOnlineSchemaChange::Query.run(client.connection, query)
   end
 
   def cleanup_dummy_tables(client = nil)
     client ||= PgOnlineSchemaChange::Client.new(client_options)
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_audit_table_for_books;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_shadow_table_for_books;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_old_primary_table_books;")
+    PgOnlineSchemaChange::Query.run(client.connection,
+                                    "DROP TABLE IF EXISTS pgosc_audit_table_for_books;")
+    PgOnlineSchemaChange::Query.run(client.connection,
+                                    "DROP TABLE IF EXISTS pgosc_shadow_table_for_books;")
+    PgOnlineSchemaChange::Query.run(client.connection,
+                                    "DROP TABLE IF EXISTS pgosc_old_primary_table_books;")
     PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS books;")
+    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS sellers;")
   end
 end

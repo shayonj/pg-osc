@@ -75,6 +75,37 @@ module PgOnlineSchemaChange
         indexes
       end
 
+      def get_all_constraints_for(client, table)
+        query = <<~SQL
+          SELECT  conrelid::regclass AS table_on,
+                  confrelid::regclass AS table_from,
+                  contype as constraint_type,
+                  conname AS constraint_name,
+                  pg_get_constraintdef(oid) AS definition
+          FROM   	pg_constraint
+          WHERE  	contype IN ('f', 'p') AND conrelid::regclass = \'#{table}\'::regclass
+        SQL
+
+        constraints = []
+        run(client.connection, query) do |result|
+          constraints = result.map { |row| row }
+        end
+
+        constraints
+      end
+
+      def get_primary_keys_for(client, table)
+        get_all_constraints_for(client, table).select do |row|
+          row["table_on"] == table && row["constraint_type"] == "p"
+        end
+      end
+
+      def get_foreign_keys_for(client, table)
+        get_all_constraints_for(client, table).select do |row|
+          row["table_on"] == table && row["constraint_type"] == "f"
+        end
+      end
+
       def dropped_columns(client)
         PgQuery.parse(client.alter_statement).tree.stmts.map do |statement|
           next if statement.stmt.alter_table_stmt.nil?

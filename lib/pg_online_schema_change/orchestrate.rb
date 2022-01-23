@@ -23,7 +23,8 @@ module PgOnlineSchemaChange
 
         Query.run(client.connection, sql)
         # install functions
-        Query.run(client.connection, FIX_SERIAL_SEQUENCE)
+        Query.run(client.connection, FUNC_FIX_SERIAL_SEQUENCE)
+        Query.run(client.connection, FUNC_CREATE_TABLE_ALL)
       end
 
       def run!(options)
@@ -92,10 +93,7 @@ module PgOnlineSchemaChange
         @shadow_table = "pgosc_shadow_table_for_#{client.table}"
         PgOnlineSchemaChange.logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
-        sql = <<~SQL
-          CREATE TABLE #{shadow_table} (LIKE #{client.table} INCLUDING ALL);
-        SQL
-        Query.run(client.connection, sql)
+        Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');")
 
         # update serials
         Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table}', '#{shadow_table}');")
@@ -252,11 +250,9 @@ module PgOnlineSchemaChange
         Query.run(client.connection, sql)
       end
 
-      def run_analyze!
-      end
+      def run_analyze!; end
 
-      def drop_and_cleanup!
-      end
+      def drop_and_cleanup!; end
 
       def primary_key
         @primary_key ||= Query.primary_key_for(client, client.table)

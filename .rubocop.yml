@@ -93,3 +93,7 @@ Style/TrailingCommaInHashLiteral:
 
 Style/SpaceAroundEqualsInParameterDefault:
   EnforcedStyle: space
+
+Style/MultilineHashBraceLayout:
+  Enabled: true
+  EnforcedStyle: symmetrical

@@ -1,4 +1,4 @@
-FIX_SERIAL_SEQUENCE = <<~SQL.freeze
+FUNC_FIX_SERIAL_SEQUENCE = <<~SQL.freeze
   CREATE OR REPLACE FUNCTION fix_serial_sequence(_table regclass, _newtable text)
   RETURNS void AS
   $func$
@@ -33,4 +33,30 @@ FIX_SERIAL_SEQUENCE = <<~SQL.freeze
 
   END
   $func$  LANGUAGE plpgsql VOLATILE;
+SQL
+
+FUNC_CREATE_TABLE_ALL = <<~SQL.freeze
+  CREATE OR REPLACE FUNCTION create_table_all(source_table text, newsource_table text)
+    RETURNS void language plpgsql
+    as $$
+    declare
+        rec record;
+    begin
+    EXECUTE format(
+          'CREATE TABLE %s (LIKE %s including all)',
+          newsource_table, source_table);
+      for rec in
+          SELECT oid, conname
+          FROM pg_constraint
+          WHERE contype = 'f'
+          AND conrelid = source_table::regclass
+      LOOP
+      EXECUTE format(
+              'ALTER TABLE %s add constraint %s %s',
+              newsource_table,
+              replace(rec.conname, source_table, newsource_table),
+              pg_get_constraintdef(rec.oid));
+      END LOOP;
+    END
+  $$;
 SQL
