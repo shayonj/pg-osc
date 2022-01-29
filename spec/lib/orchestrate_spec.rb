@@ -54,8 +54,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
     end
 
     after do
@@ -102,8 +101,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
 
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
 
       described_class.setup_audit_table!
     end
@@ -245,8 +243,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
 
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
     end
 
     after do
@@ -322,8 +319,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
 
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
 
       described_class.setup_audit_table!
       described_class.setup_shadow_table!
@@ -373,8 +369,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
 
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
       ingest_dummy_data_into_dummy_table(client)
 
       described_class.setup_shadow_table!
@@ -427,8 +422,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
 
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
 
       described_class.setup_audit_table!
       described_class.setup_shadow_table!
@@ -479,7 +473,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         described_class.setup!(client_options)
 
         cleanup_dummy_tables(client)
-        create_dummy_table(client)
+        create_dummy_tables(client)
 
         described_class.setup_audit_table!
         described_class.setup_shadow_table!
@@ -526,8 +520,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
         described_class.setup!(client_options)
 
-        cleanup_dummy_tables(client)
-        create_dummy_table(client)
+        setup_tables(client)
 
         described_class.setup_audit_table!
         described_class.setup_shadow_table!
@@ -577,8 +570,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
         described_class.setup!(client_options)
 
-        cleanup_dummy_tables(client)
-        create_dummy_table(client)
+        setup_tables(client)
         ingest_dummy_data_into_dummy_table(client)
 
         described_class.setup_audit_table!
@@ -781,8 +773,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
         described_class.setup!(client_options)
 
-        cleanup_dummy_tables(client)
-        create_dummy_table(client)
+        setup_tables(client)
         ingest_dummy_data_into_dummy_table(client)
 
         described_class.setup_audit_table!
@@ -810,8 +801,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
         # Add an entry for the trigger
         query = <<~SQL
-          INSERT INTO "books"("user_id", "username", "password", "email", "created_on", "last_login")
-          VALUES(10, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
+          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -929,8 +920,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
         described_class.setup!(client_options)
 
-        cleanup_dummy_tables(client)
-        create_dummy_table(client)
+        setup_tables(client)
         ingest_dummy_data_into_dummy_table(client)
 
         described_class.setup_audit_table!
@@ -960,8 +950,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
         # Add an entry for the trigger
         query = <<~SQL
-          INSERT INTO "books"("user_id", "username", "password", "email", "created_on", "last_login")
-          VALUES(10, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
+          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -1077,8 +1067,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       described_class.setup!(client_options)
 
-      cleanup_dummy_tables(client)
-      create_dummy_table(client)
+      setup_tables(client)
       ingest_dummy_data_into_dummy_table(client)
 
       described_class.setup_audit_table!
@@ -1088,12 +1077,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.copy_data!
       described_class.run_alter_statement!
 
-      query = <<~SQL
-        INSERT INTO "books"("user_id", "username", "password", "email", "created_on", "last_login")
-        VALUES(10, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
-      SQL
-      PgOnlineSchemaChange::Query.run(client.connection, query)
-      # Fetch rows
+      # Fetch rows to replay data
       select_query = <<~SQL
         SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
       SQL
@@ -1108,12 +1092,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "sucessfully renames the tables" do
-      sql = <<~SQL
-        LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE;
-        ALTER TABLE books RENAME to pgosc_old_primary_table_books;
-        ALTER TABLE pgosc_shadow_table_for_books RENAME to books;
-      SQL
-
       described_class.swap!
 
       # Fetch rows from the original primary table
@@ -1126,7 +1104,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
           row
         end
       end
-      expect(rows.count).to eq(4)
+      expect(rows.count).to eq(3)
 
       # Fetch rows from the renamed table
       select_query = <<~SQL
@@ -1138,7 +1116,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
           row
         end
       end
-      expect(rows.count).to eq(4)
+      expect(rows.count).to eq(3)
 
       # confirm indexes on newly renamed table
       columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")

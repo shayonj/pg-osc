@@ -86,7 +86,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
 
     before do
-      create_dummy_table(client)
+      setup_tables(client)
     end
 
     it "returns all constraints" do
@@ -104,7 +104,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
 
     before do
-      create_dummy_table(client)
+      setup_tables(client)
     end
 
     it "returns all constraints" do
@@ -120,7 +120,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
 
     before do
-      create_dummy_table(client)
+      setup_tables(client)
     end
 
     it "returns all constraints" do
@@ -206,7 +206,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
 
     before do
-      create_dummy_table(client)
+      setup_tables(client)
     end
 
     it "returns index statements for shadow table with altered index name" do
