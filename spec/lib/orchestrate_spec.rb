@@ -1130,9 +1130,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
       expect(foreign_keys).to eq([
-                                { "table_on" => "chapters", "table_from" => "books",
-                                  "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id" },
-                              ])
+                                   { "table_on" => "chapters", "table_from" => "books",
+                                     "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id" },
+                                 ])
     end
   end
 end

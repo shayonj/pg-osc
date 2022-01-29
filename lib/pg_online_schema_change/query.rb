@@ -75,7 +75,7 @@ module PgOnlineSchemaChange
         indexes
       end
 
-      def get_all_constraints_for(client, table)
+      def get_all_constraints_for(client)
         query = <<~SQL
           SELECT  conrelid::regclass AS table_on,
                   confrelid::regclass AS table_from,
@@ -83,7 +83,7 @@ module PgOnlineSchemaChange
                   conname AS constraint_name,
                   pg_get_constraintdef(oid) AS definition
           FROM   	pg_constraint
-          WHERE  	contype IN ('f', 'p') AND conrelid::regclass = \'#{table}\'::regclass
+          WHERE  	contype IN ('f', 'p')
         SQL
 
         constraints = []
@@ -95,13 +95,13 @@ module PgOnlineSchemaChange
       end
 
       def get_primary_keys_for(client, table)
-        get_all_constraints_for(client, table).select do |row|
+        get_all_constraints_for(client).select do |row|
           row["table_on"] == table && row["constraint_type"] == "p"
         end
       end
 
       def get_foreign_keys_for(client, table)
-        get_all_constraints_for(client, table).select do |row|
+        get_all_constraints_for(client).select do |row|
           row["table_on"] == table && row["constraint_type"] == "f"
         end
       end
