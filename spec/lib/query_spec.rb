@@ -150,7 +150,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
     end
 
-    it "returns drop and add statements accordingly when NOT NULL is present" do
+    it "returns drop and add statements accordingly when NOT VALID is present" do
       client = PgOnlineSchemaChange::Client.new(client_options)
       described_class.run(client.connection, "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;")
       described_class.run(client.connection,
