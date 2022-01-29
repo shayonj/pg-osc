@@ -1125,7 +1125,14 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                              "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_email_key ON books USING btree (email)"])
     end
 
-    skip "sucessfully renames the tables and transfers foreign keys" do
+    it "sucessfully renames the tables and transfers foreign keys" do
+      described_class.swap!
+
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
+      expect(foreign_keys).to eq([
+                                { "table_on" => "chapters", "table_from" => "books",
+                                  "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id" },
+                              ])
     end
   end
 end
