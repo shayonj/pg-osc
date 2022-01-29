@@ -39,7 +39,7 @@ module PgOnlineSchemaChange
         copy_data!
         run_alter_statement!
         replay_and_swap!
-        # run_analyze!
+        run_analyze!
         # drop_and_cleanup!
       rescue StandardError => e
         PgOnlineSchemaChange.logger.fatal("Something went wrong: #{e.message}", { e: e })
@@ -254,7 +254,9 @@ module PgOnlineSchemaChange
         Query.run(client.connection, sql)
       end
 
-      def run_analyze!; end
+      def run_analyze!
+        Query.run(client.connection, "ANALYZE VERBOSE #{client.table};")
+      end
 
       def drop_and_cleanup!; end
 

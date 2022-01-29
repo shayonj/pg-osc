@@ -1127,4 +1127,44 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(foreign_keys).to eq(result)
     end
   end
+
+  describe ".run_analyze!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      described_class.setup!(client_options)
+
+      setup_tables(client)
+      ingest_dummy_data_into_dummy_table(client)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.disable_vacuum!
+      described_class.copy_data!
+      described_class.run_alter_statement!
+      described_class.replay_data!([])
+      described_class.swap!
+    end
+
+    it "sucessfully renames the tables" do
+      query = "SELECT last_analyze FROM pg_stat_all_tables WHERE relname = 'books';"
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows[0]["last_analyze"]).to eq(nil)
+
+      described_class.run_analyze!
+      sleep(1)
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows[0]["last_analyze"]).not_to eq(nil)
+    end
+  end
 end
