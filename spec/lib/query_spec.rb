@@ -49,9 +49,9 @@ RSpec.describe PgOnlineSchemaChange::Query do
       client = PgOnlineSchemaChange::Client.new(client_options)
       query = "SELECT 'FooBar' as result"
 
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with("SELECT 'FooBar' as result").and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("SELECT 'FooBar' as result").and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.run(client.connection, query) do |result|
         expect(result.count).to eq(1)
@@ -218,9 +218,9 @@ RSpec.describe PgOnlineSchemaChange::Query do
         WHERE schemaname = 'public' AND tablename = 'books'
       SQL
 
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with(query).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with(query).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       result = described_class.get_indexes_for(client, "books")
       expect(result).to eq([
@@ -253,9 +253,9 @@ RSpec.describe PgOnlineSchemaChange::Query do
         AND indisprimary
       SQL
 
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with(query).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with(query).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       result = described_class.primary_key_for(client, client.table)
       expect(result).to eq("user_id")
