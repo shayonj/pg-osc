@@ -171,6 +171,8 @@ module PgOnlineSchemaChange
       end
 
       def replay_data!(rows)
+        PgOnlineSchemaChange.logger.info("Replaying rows, count: #{rows.size}")
+
         to_be_deleted_rows = []
         rows.each do |row|
           new_row = row.dup
