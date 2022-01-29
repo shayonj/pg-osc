@@ -106,7 +106,7 @@ module PgOnlineSchemaChange
         end
       end
 
-      def get_foreign_keys_to_add(client, table)
+      def get_foreign_keys_to_refresh(client, table)
         references = get_all_constraints_for(client).select do |row|
           row["table_from"] == table && row["constraint_type"] == "f"
         end
