@@ -1126,13 +1126,25 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "sucessfully renames the tables and transfers foreign keys" do
+      result = [
+        { "table_on" => "chapters", "table_from" => "books",
+          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
+      ]
+
+      # before (w/o not valid)
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
+      expect(foreign_keys).to eq(result)
+
       described_class.swap!
 
+      result = [
+        { "table_on" => "chapters", "table_from" => "books",
+          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID" },
+      ]
+
+      # before (w/ not valid)
       foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
-      expect(foreign_keys).to eq([
-                                   { "table_on" => "chapters", "table_from" => "books",
-                                     "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id" },
-                                 ])
+      expect(foreign_keys).to eq(result)
     end
   end
 end
