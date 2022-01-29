@@ -91,12 +91,18 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns all constraints" do
       result = [
+        { "table_on" => "sellers", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "sellers_pkey",
+          "definition" => "PRIMARY KEY (id)" },
         { "table_on" => "books", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "books_pkey",
           "definition" => "PRIMARY KEY (user_id)" },
         { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
           "constraint_name" => "books_seller_id_fkey", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+        { "table_on" => "chapters", "table_from" => "-", "constraint_type" => "p",
+          "constraint_name" => "chapters_pkey", "definition" => "PRIMARY KEY (id)" },
+        { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
+          "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
       ]
-      expect(described_class.get_all_constraints_for(client, "books")).to eq(result)
+      expect(described_class.get_all_constraints_for(client)).to eq(result)
     end
   end
 
@@ -129,6 +135,29 @@ RSpec.describe PgOnlineSchemaChange::Query do
           "table_from" => "-", "table_on" => "books" },
       ]
       expect(described_class.get_primary_keys_for(client, "books")).to eq(result)
+    end
+  end
+
+  describe ".get_foreign_keys_to_refresh" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      setup_tables(client)
+    end
+
+    it "returns drop and add statements" do
+      result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
+      expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
+    end
+
+    it "returns drop and add statements accordingly when NOT NULL is present" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      described_class.run(client.connection, "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;")
+      described_class.run(client.connection,
+                          " ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
+
+      result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
+      expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
     end
   end
 

@@ -75,7 +75,7 @@ module PgOnlineSchemaChange
         indexes
       end
 
-      def get_all_constraints_for(client, table)
+      def get_all_constraints_for(client)
         query = <<~SQL
           SELECT  conrelid::regclass AS table_on,
                   confrelid::regclass AS table_from,
@@ -83,7 +83,7 @@ module PgOnlineSchemaChange
                   conname AS constraint_name,
                   pg_get_constraintdef(oid) AS definition
           FROM   	pg_constraint
-          WHERE  	contype IN ('f', 'p') AND conrelid::regclass = \'#{table}\'::regclass
+          WHERE  	contype IN ('f', 'p')
         SQL
 
         constraints = []
@@ -95,15 +95,33 @@ module PgOnlineSchemaChange
       end
 
       def get_primary_keys_for(client, table)
-        get_all_constraints_for(client, table).select do |row|
+        get_all_constraints_for(client).select do |row|
           row["table_on"] == table && row["constraint_type"] == "p"
         end
       end
 
       def get_foreign_keys_for(client, table)
-        get_all_constraints_for(client, table).select do |row|
+        get_all_constraints_for(client).select do |row|
           row["table_on"] == table && row["constraint_type"] == "f"
         end
+      end
+
+      def get_foreign_keys_to_refresh(client, table)
+        references = get_all_constraints_for(client).select do |row|
+          row["table_from"] == table && row["constraint_type"] == "f"
+        end
+
+        references.map do |row|
+          if row["definition"].end_with?("NOT VALID")
+            add_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+          else
+            add_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+          end
+
+          drop_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
+
+          "#{drop_statement} #{add_statement}"
+        end.join
       end
 
       def dropped_columns(client)

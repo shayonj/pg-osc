@@ -1,10 +1,11 @@
 # pg-online-schema-change
 
-pg-online-schema-change is a tool for making schema changes in Postgres tables with minimal locks, thus helping achieve zero down time schema changes against production workloads. 
+pg-online-schema-change is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero down time schema changes against production workloads. 
 
-pg-online-schema-change is inspired from the design and workings of tools like `pg_repack` and `pt-online-schema-change` for MySQL. Read more [below](#how-does-it-work) on how it works in action.
+pg-online-schema-change is inspired from the design and workings of tools like `pg_repack` and `pt-online-schema-change` for MySQL. Read more [below](#how-does-it-work) on how it works in action, features and any caveats.
 
 ⚠️ ⚠️ THIS IS CURRENTLY WIP AND IS CONSIDERED EXPERIMENTAL ⚠️ ⚠️ 
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -51,34 +52,44 @@ Usage:
 
 print the version
 ```
-
-## Caveats / Limitations
-- A primary key should exists on the table, without it pgosc will error out early.
-  - This is because - currently there is no other way to uniquely identify rows during replay.
-- For a brief moment, towards the end of the process pgosc will acquire a `ACCESS EXCLUSIVE lock` to perform the swap of table name and FK references
-- By design it doesn't kill any other DDLs being performed. Its best to not run any DDLs against parent table during the process to avoid any issues.
-- During the nature of duplicating a table, there needs to be enough space on the disk to support the operation.
-- Index, constraints and sequence names will be altered and lose their original naming (can be fixed in future releases).
-- Triggers are not carried over. 
-
 ## How does it work
 
 - Primary table: A table against which a potential schema change is to be run
 - Shadow table: A copy of an existing primary table
 - Audit table: A table to store any updates/inserts/delete on a primary table
 
-1. Create an audit table to record changes made to the parent table
-2. Add a trigger on the parent table (for inserts, updates, deletes) to our audit table
-3. Create new shadow table with all rows from old table. 
+1. Create an audit table to record changes made to the parent table.
+2. Add a trigger on the parent table (for inserts, updates, deletes) to our audit table.
+3. Create new shadow table with all rows from old table.
 4. Run ALTER/migration on the shadow table.
 5. Build indexes on the new table.
-6. Replay all changes accumulated in the audit table against the shadow table
-   - Delete rows in audit table as they are replayed
+6. Replay all changes accumulated in the audit table against the shadow table.
+   - Delete rows in audit table as they are replayed.
 7. Once the delta (reamaining rows) is ~20 rows, acquire an access exclusive lock against the parent table, within a transaction and:
-   - swap table names (shadow table <> parent table)
-   - update references in other tables (FKs) by dropping and re-creating the FKs with a `NOT VALID`
-8. Drop parent (now old) table (OPTIONAL)
+   - swap table names (shadow table <> parent table).
+   - update references in other tables (FKs) by dropping and re-creating the FKs with a `NOT VALID`.
+8. Runs `ANALYZE` on the new table.
+9. Drop parent (now old) table (OPTIONAL).
 
+### Prominent features
+- It supports when a column is being added, dropped or renamed with no data loss. 
+- It acquires minimal locks through out the process (read more below on the caveat).
+- Copies over indexes and Foreign keys.
+- Optionally drop or retain old tables in the end.
+- **TBD**: It supports the ability to reverse the change with no data loss. pgosc makes sure that the data is being replayed in both directions (tables) before and after the swap. So in case of any issues, you can always go back to the original table.
+
+### Caveats / Limitations
+- A primary key should exists on the table, without it pgosc will error out early.
+  - This is because - currently there is no other way to uniquely identify rows during replay.
+- For a brief moment, towards the end of the process pgosc will acquire a `ACCESS EXCLUSIVE lock` to perform the swap of table name and FK references.
+- By design it doesn't kill any other DDLs being performed. Its best to not run any DDLs against parent table during the process to avoid any issues.
+- During the nature of duplicating a table, there needs to be enough space on the disk to support the operation.
+- Index, constraints and sequence names will be altered and lose their original naming.
+  - Can be fixed in future releases. Feel free to open a feature req.
+- Triggers are not carried over. 
+  - Can be fixed in future releases. Feel free to open a feature req.
+- Foreign keys are dropped & re-added to referencing tables with a NOT VALID.
+  - This is to ensure that integrity is maintained as before but skip the FK validation to avoid long locks.
 ## Development
 
 - Install ruby 3.0
