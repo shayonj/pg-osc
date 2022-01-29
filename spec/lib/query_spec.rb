@@ -138,6 +138,29 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
   end
 
+  describe ".get_foreign_keys_to_add" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      setup_tables(client)
+    end
+
+    it "returns drop and add statements" do
+      result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
+      expect(described_class.get_foreign_keys_to_add(client, "books")).to eq(result)
+    end
+
+    it "returns drop and add statements accordingly when NOT NULL is present" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      described_class.run(client.connection, "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;")
+      described_class.run(client.connection,
+                          " ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
+
+      result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
+      expect(described_class.get_foreign_keys_to_add(client, "books")).to eq(result)
+    end
+  end
+
   describe ".alter_statement_for" do
     it "returns alter statement for shadow table" do
       client = PgOnlineSchemaChange::Client.new(client_options)

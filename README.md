@@ -60,7 +60,8 @@ print the version
 - During the nature of duplicating a table, there needs to be enough space on the disk to support the operation.
 - Index, constraints and sequence names will be altered and lose their original naming (can be fixed in future releases).
 - Triggers are not carried over. 
-
+- Foreign keys are dropped & re-added to referencing tables with a NOT VALID.
+  - This is to ensure that integrity is maintained as before but skip the FK validation to avoid long locks.
 ## How does it work
 
 - Primary table: A table against which a potential schema change is to be run

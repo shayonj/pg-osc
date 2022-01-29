@@ -106,6 +106,24 @@ module PgOnlineSchemaChange
         end
       end
 
+      def get_foreign_keys_to_add(client, table)
+        references = get_all_constraints_for(client).select do |row|
+          row["table_from"] == table && row["constraint_type"] == "f"
+        end
+
+        references.map do |row|
+          if row["definition"].end_with?("NOT VALID")
+            add_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+          else
+            add_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+          end
+
+          drop_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
+
+          "#{drop_statement} #{add_statement}"
+        end.join
+      end
+
       def dropped_columns(client)
         PgQuery.parse(client.alter_statement).tree.stmts.map do |statement|
           next if statement.stmt.alter_table_stmt.nil?
