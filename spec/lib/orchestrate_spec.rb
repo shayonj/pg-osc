@@ -607,9 +607,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -666,9 +664,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -733,9 +729,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -812,9 +806,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -873,9 +865,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -961,9 +951,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -1025,9 +1013,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-          rows = result.map do |row|
-            row
-          end
+          rows = result.map { |row| row }
         end
 
         described_class.replay_data!(rows)
@@ -1083,9 +1069,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       SQL
       rows = []
       PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-        rows = result.map do |row|
-          row
-        end
+        rows = result.map { |row| row }
       end
 
       described_class.replay_data!(rows)
@@ -1100,9 +1084,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       SQL
       rows = []
       PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-        rows = result.map do |row|
-          row
-        end
+        rows = result.map { |row| row }
       end
       expect(rows.count).to eq(3)
 
@@ -1112,9 +1094,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       SQL
       rows = []
       PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-        rows = result.map do |row|
-          row
-        end
+        rows = result.map { |row| row }
       end
       expect(rows.count).to eq(3)
 
