@@ -38,6 +38,7 @@ module PgOnlineSchemaChange
         disable_vacuum!
         copy_data!
         run_alter_statement!
+        run_analyze!
         replay_and_swap!
         run_analyze!
         # drop_and_cleanup!
