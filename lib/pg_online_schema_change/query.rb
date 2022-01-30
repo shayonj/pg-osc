@@ -26,9 +26,18 @@ module PgOnlineSchemaChange
       def run(connection, query, &block)
         PgOnlineSchemaChange.logger.debug("Running query", { query: query })
 
-        connection.exec("BEGIN;")
-        connection.exec(query, &block)
-        connection.exec("COMMIT;")
+        connection.async_exec("BEGIN;")
+        result = connection.async_exec(query, &block)
+      rescue Exception
+        connection.cancel if connection.transaction_status != PG::PQTRANS_IDLE
+        connection.block
+        PgOnlineSchemaChange.logger.info("Exception raised, rolling back query", { rollback: true, query: query })
+        connection.async_exec("ROLLBACK;")
+        connection.async_exec("COMMIT;")
+        raise
+      else
+        connection.async_exec("COMMIT;")
+        result
       end
 
       def table_columns(client, table = nil)

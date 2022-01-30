@@ -7,13 +7,13 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       client = PgOnlineSchemaChange::Client.new(client_options)
       expect(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
-      expect(client.connection).to receive(:exec).with("BEGIN;").exactly(5).times.and_call_original
-      expect(client.connection).to receive(:exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\n").and_call_original
-      expect(client.connection).to receive(:exec).with(FUNC_FIX_SERIAL_SEQUENCE).and_call_original
-      expect(client.connection).to receive(:exec).with(FUNC_CREATE_TABLE_ALL).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").exactly(5).times.and_call_original
-      expect(client.connection).to receive(:exec).with("SHOW statement_timeout;").and_call_original
-      expect(client.connection).to receive(:exec).with("SHOW client_min_messages;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(5).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\n").and_call_original
+      expect(client.connection).to receive(:async_exec).with(FUNC_FIX_SERIAL_SEQUENCE).and_call_original
+      expect(client.connection).to receive(:async_exec).with(FUNC_CREATE_TABLE_ALL).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(5).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("SHOW statement_timeout;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("SHOW client_min_messages;").and_call_original
 
       described_class.setup!(client_options)
 
@@ -63,9 +63,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "creates the audit table with columns from parent table and additional identifiers" do
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with("CREATE TABLE pgosc_audit_table_for_books (operation_type text, trigger_time timestamp, LIKE books);\n").and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("CREATE TABLE pgosc_audit_table_for_books (operation_type text, trigger_time timestamp, LIKE books);\n").and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.setup_audit_table!
 
@@ -130,9 +130,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         FOR EACH ROW EXECUTE PROCEDURE primary_to_audit_table_trigger();
       SQL
 
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with(result).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with(result).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.setup_trigger!
       expect(described_class.audit_table).to eq("pgosc_audit_table_for_books")
@@ -252,10 +252,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "creates the shadow table matching parent table" do
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with("SELECT fix_serial_sequence('books', 'pgosc_shadow_table_for_books');").and_call_original
-      expect(client.connection).to receive(:exec).with("SELECT create_table_all('books', 'pgosc_shadow_table_for_books');").and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("SELECT fix_serial_sequence('books', 'pgosc_shadow_table_for_books');").and_call_original
+      expect(client.connection).to receive(:async_exec).with("SELECT create_table_all('books', 'pgosc_shadow_table_for_books');").and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.setup_shadow_table!
 
@@ -335,9 +335,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
           autovacuum_enabled = false, toast.autovacuum_enabled = false
         );
       SQL
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with(query).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with(query).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.disable_vacuum!
       RSpec::Mocks.space.reset_all
@@ -386,10 +386,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SELECT user_id, username, seller_id, password, email, created_on, last_login
         FROM ONLY books
       SQL
-      expect(client.connection).to receive(:exec).with("BEGIN;").twice.and_call_original
-      expect(client.connection).to receive(:exec).with(column_query).and_call_original
-      expect(client.connection).to receive(:exec).with(insert_query).and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").twice.and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").twice.and_call_original
+      expect(client.connection).to receive(:async_exec).with(column_query).and_call_original
+      expect(client.connection).to receive(:async_exec).with(insert_query).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
 
       described_class.copy_data!
 
@@ -429,9 +429,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "succesfully" do
-      expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:exec).with("ALTER TABLE pgosc_shadow_table_for_books ADD COLUMN purchased boolean DEFAULT false").and_call_original
-      expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("ALTER TABLE pgosc_shadow_table_for_books ADD COLUMN purchased boolean DEFAULT false").and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.run_alter_statement!
       RSpec::Mocks.space.reset_all
@@ -480,9 +480,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       end
 
       it "succesfully" do
-        expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-        expect(client.connection).to receive(:exec).with("ALTER TABLE pgosc_shadow_table_for_books DROP email").and_call_original
-        expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+        expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+        expect(client.connection).to receive(:async_exec).with("ALTER TABLE pgosc_shadow_table_for_books DROP email").and_call_original
+        expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
         described_class.run_alter_statement!
         RSpec::Mocks.space.reset_all
@@ -527,9 +527,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       end
 
       it "succesfully" do
-        expect(client.connection).to receive(:exec).with("BEGIN;").and_call_original
-        expect(client.connection).to receive(:exec).with("ALTER TABLE pgosc_shadow_table_for_books RENAME COLUMN email TO new_email").and_call_original
-        expect(client.connection).to receive(:exec).with("COMMIT;").and_call_original
+        expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+        expect(client.connection).to receive(:async_exec).with("ALTER TABLE pgosc_shadow_table_for_books RENAME COLUMN email TO new_email").and_call_original
+        expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
         described_class.run_alter_statement!
         RSpec::Mocks.space.reset_all
