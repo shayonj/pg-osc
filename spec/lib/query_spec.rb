@@ -45,8 +45,13 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".run" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
-    let(:alter_query) { "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;" }
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    let(:alter_query) { "ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey;" }
     let(:result) do
       { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
         "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" }
@@ -114,8 +119,17 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".table_columns" do
-    it "returns column names" do
+    let(:client) do
       client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    before do
+      setup_tables(client)
+    end
+
+    it "returns column names" do
       described_class.run(client.connection, new_dummy_table_sql)
       result = [
         { "column_name" => "user_id", "type" => "integer", "column_position" => 1 },
@@ -134,7 +148,11 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".get_all_constraints_for" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
 
     before do
       setup_tables(client)
@@ -158,7 +176,11 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".get_foreign_keys_for" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
 
     before do
       setup_tables(client)
@@ -174,7 +196,11 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".get_primary_keys_for" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
 
     before do
       setup_tables(client)
@@ -190,32 +216,42 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".get_foreign_keys_to_refresh" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    let(:result) do
+      "ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
+    end
 
     before do
       setup_tables(client)
     end
 
     it "returns drop and add statements" do
-      result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
       expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
     end
 
     it "returns drop and add statements accordingly when NOT VALID is present" do
       client = PgOnlineSchemaChange::Client.new(client_options)
-      described_class.run(client.connection, "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;")
+      described_class.run(client.connection, "ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey;")
       described_class.run(client.connection,
-                          "ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
+                          "ALTER TABLE chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
 
-      result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
       expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
     end
   end
 
   describe ".alter_statement_for" do
-    it "returns alter statement for shadow table" do
+    let(:client) do
       client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
 
+    it "returns alter statement for shadow table" do
       result = described_class.alter_statement_for(client, "new_books")
       expect(result).to eq("ALTER TABLE new_books ADD COLUMN purchased boolean DEFAULT false")
     end
@@ -260,13 +296,17 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".get_indexes_for" do
-    it "returns index statements for the given table on client" do
+    let(:client) do
       client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
 
+    it "returns index statements for the given table on client" do
       query = <<~SQL
         SELECT indexdef, schemaname
         FROM pg_indexes
-        WHERE schemaname = 'public' AND tablename = 'books'
+        WHERE schemaname = \'#{client.schema}\' AND tablename = 'books'
       SQL
 
       expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
@@ -275,15 +315,19 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
       result = described_class.get_indexes_for(client, "books")
       expect(result).to eq([
-                             "CREATE UNIQUE INDEX books_pkey ON books USING btree (user_id)",
-                             "CREATE UNIQUE INDEX books_username_key ON books USING btree (username)",
-                             "CREATE UNIQUE INDEX books_email_key ON books USING btree (email)",
+                             "CREATE UNIQUE INDEX books_pkey ON #{client.schema}.books USING btree (user_id)",
+                             "CREATE UNIQUE INDEX books_username_key ON #{client.schema}.books USING btree (username)",
+                             "CREATE UNIQUE INDEX books_email_key ON #{client.schema}.books USING btree (email)",
                            ])
     end
   end
 
   describe ".primary_key_for" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
 
     before do
       setup_tables(client)
