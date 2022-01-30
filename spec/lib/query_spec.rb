@@ -45,8 +45,18 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".run" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+    let(:alter_query) { "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;" }
+    let(:result) do
+      { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
+        "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" }
+    end
+
+    before do
+      setup_tables(client)
+    end
+
     it "runs the query and yields the result" do
-      client = PgOnlineSchemaChange::Client.new(client_options)
       query = "SELECT 'FooBar' as result"
 
       expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
@@ -59,6 +69,47 @@ RSpec.describe PgOnlineSchemaChange::Query do
           expect(row).to eq({ "result" => "FooBar" })
         end
       end
+    end
+
+    it "runs the alter query succesfully" do
+      query = described_class.get_all_constraints_for(client).find do |row|
+        row["constraint_name"] == "chapters_book_id_fkey"
+      end
+      expect(query).to eq(result)
+
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").twice.and_call_original
+      expect(client.connection).to receive(:async_exec).with(/FROM   	pg_constraint/).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
+      allow(client.connection).to receive(:async_exec).with(alter_query).and_call_original
+
+      described_class.run(client.connection, alter_query)
+
+      query = described_class.get_all_constraints_for(client).find do |row|
+        row["constraint_name"] == "chapters_book_id_fkey"
+      end
+      expect(query).to eq(nil)
+    end
+
+    it "runs the alter query and rollsback succesfully" do
+      query = described_class.get_all_constraints_for(client).find do |row|
+        row["constraint_name"] == "chapters_book_id_fkey"
+      end
+      expect(query).to eq(result)
+
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").twice.and_call_original
+      expect(client.connection).to receive(:async_exec).with("ROLLBACK;").and_call_original
+      expect(client.connection).to receive(:async_exec).with(/FROM   	pg_constraint/).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
+
+      allow(client.connection).to receive(:async_exec).with(alter_query).and_raise(PG::DependentObjectsStillExist)
+      expect do
+        described_class.run(client.connection, alter_query)
+      end.to raise_error(PG::DependentObjectsStillExist)
+
+      query = described_class.get_all_constraints_for(client).find do |row|
+        row["constraint_name"] == "chapters_book_id_fkey"
+      end
+      expect(query).to eq(result)
     end
   end
 
@@ -154,7 +205,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       client = PgOnlineSchemaChange::Client.new(client_options)
       described_class.run(client.connection, "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey;")
       described_class.run(client.connection,
-                          " ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
+                          "ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
 
       result = "ALTER TABLE public.chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE public.chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
       expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)

@@ -31,7 +31,9 @@ module PgOnlineSchemaChange
       rescue Exception
         connection.cancel if connection.transaction_status != PG::PQTRANS_IDLE
         connection.block
+        PgOnlineSchemaChange.logger.info("Exception raised, rolling back query", { rollback: true, query: query })
         connection.async_exec("ROLLBACK;")
+        connection.async_exec("COMMIT;")
         raise
       else
         connection.async_exec("COMMIT;")
