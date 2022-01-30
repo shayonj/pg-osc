@@ -19,6 +19,7 @@ module PgOnlineSchemaChange
         sql = <<~SQL
           SET statement_timeout = 0;
           SET client_min_messages = warning;
+          SET search_path TO #{client.schema};
         SQL
 
         Query.run(client.connection, sql)

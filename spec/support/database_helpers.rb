@@ -1,8 +1,12 @@
 module DatabaseHelpers
+  def schema
+    ENV["POSTGRES_SCHEMA"] || "test_schema"
+  end
+
   def client_options
     options = {
       alter_statement: 'ALTER TABLE books ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE;',
-      schema: ENV["POSTGRES_SCHEMA"] || "public",
+      schema: schema,
       dbname: ENV["POSTGRES_DB"] || "postgres",
       host: ENV["POSTGRES_HOST"] || "127.0.0.1",
       username: ENV["POSTGRES_USER"] || "jamesbond",
@@ -14,27 +18,29 @@ module DatabaseHelpers
 
   def new_dummy_table_sql
     <<~SQL
-      CREATE TABLE IF NOT EXISTS public.sellers (
+      CREATE SCHEMA IF NOT EXISTS #{schema};
+
+      CREATE TABLE IF NOT EXISTS #{schema}.sellers (
         id serial PRIMARY KEY,
         name VARCHAR ( 50 ) UNIQUE NOT NULL,
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS public.books (
+      CREATE TABLE IF NOT EXISTS #{schema}.books (
         user_id serial PRIMARY KEY,
         username VARCHAR ( 50 ) UNIQUE NOT NULL,
-        seller_id SERIAL REFERENCES sellers NOT NULL,
+        seller_id SERIAL REFERENCES #{schema}.sellers NOT NULL,
         password VARCHAR ( 50 ) NOT NULL,
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS public.chapters (
+      CREATE TABLE IF NOT EXISTS #{schema}.chapters (
         id serial PRIMARY KEY,
         name VARCHAR ( 50 ) UNIQUE NOT NULL,
-        book_id SERIAL REFERENCES books NOT NULL,
+        book_id SERIAL REFERENCES #{schema}.books NOT NULL,
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
@@ -44,6 +50,7 @@ module DatabaseHelpers
   def setup_tables(client = nil)
     cleanup_dummy_tables(client)
     create_dummy_tables(client)
+    PgOnlineSchemaChange::Query.run(client.connection, "SET search_path TO #{client.schema};")
   end
 
   def create_dummy_tables(client = nil)
@@ -54,10 +61,10 @@ module DatabaseHelpers
   def ingest_dummy_data_into_dummy_table(client = nil)
     client ||= PgOnlineSchemaChange::Client.new(client_options)
     query = <<~SQL
-      INSERT INTO "sellers"("name", "created_on", "last_login")
+      INSERT INTO "#{schema}"."sellers"("name", "created_on", "last_login")
       VALUES('local shop', 'now()', 'now()');
 
-      INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
+      INSERT INTO "#{schema}"."books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
       VALUES
         (2, 1, 'jamesbond2', '007', 'james1@bond.com', 'now()', 'now()'),
         (3, 1, 'jamesbond3', '008', 'james2@bond.com', 'now()', 'now()'),
@@ -68,11 +75,6 @@ module DatabaseHelpers
 
   def cleanup_dummy_tables(client = nil)
     client ||= PgOnlineSchemaChange::Client.new(client_options)
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS chapters;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_audit_table_for_books;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_shadow_table_for_books;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS pgosc_old_primary_table_books;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS books;")
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP TABLE IF EXISTS sellers;")
+    PgOnlineSchemaChange::Query.run(client.connection, "DROP SCHEMA IF EXISTS #{schema} CASCADE;")
   end
 end

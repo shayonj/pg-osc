@@ -122,12 +122,12 @@ module PgOnlineSchemaChange
 
         references.map do |row|
           if row["definition"].end_with?("NOT VALID")
-            add_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+            add_statement = "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
           else
-            add_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+            add_statement = "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
           end
 
-          drop_statement = "ALTER TABLE #{client.schema}.#{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
+          drop_statement = "ALTER TABLE #{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
 
           "#{drop_statement} #{add_statement}"
         end.join

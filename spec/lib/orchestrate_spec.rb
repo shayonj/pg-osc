@@ -3,12 +3,19 @@
 require "pry"
 RSpec.describe PgOnlineSchemaChange::Orchestrate do
   describe ".setup!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
+    end
+
     it "sets the defaults & functions" do
       client = PgOnlineSchemaChange::Client.new(client_options)
       expect(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
       expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(5).times.and_call_original
-      expect(client.connection).to receive(:async_exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\n").and_call_original
+      expect(client.connection).to receive(:async_exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\nSET search_path TO #{client.schema};\n").and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_FIX_SERIAL_SEQUENCE).and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_CREATE_TABLE_ALL).and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(5).times.and_call_original
@@ -36,7 +43,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         SELECT routine_name
         FROM information_schema.routines
         WHERE routine_type='FUNCTION'
-          AND specific_schema='public'
+          AND specific_schema=\'#{client.schema}\'
           AND routine_name='fix_serial_sequence';
       SQL
       rows = []
@@ -99,9 +106,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      described_class.setup!(client_options)
-
       setup_tables(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
     end
@@ -241,9 +247,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      described_class.setup!(client_options)
-
       setup_tables(client)
+      described_class.setup!(client_options)
     end
 
     after do
@@ -317,9 +322,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      described_class.setup!(client_options)
-
       setup_tables(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_shadow_table!
@@ -367,9 +371,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
       described_class.setup!(client_options)
 
-      setup_tables(client)
       ingest_dummy_data_into_dummy_table(client)
 
       described_class.setup_shadow_table!
@@ -420,9 +424,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      described_class.setup!(client_options)
-
       setup_tables(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_shadow_table!
@@ -470,10 +473,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       before do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-        described_class.setup!(client_options)
-
         cleanup_dummy_tables(client)
         create_dummy_tables(client)
+
+        described_class.setup!(client_options)
 
         described_class.setup_audit_table!
         described_class.setup_shadow_table!
@@ -518,9 +521,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       before do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-        described_class.setup!(client_options)
-
         setup_tables(client)
+        described_class.setup!(client_options)
 
         described_class.setup_audit_table!
         described_class.setup_shadow_table!
@@ -568,9 +570,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       before do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+        setup_tables(client)
         described_class.setup!(client_options)
 
-        setup_tables(client)
         ingest_dummy_data_into_dummy_table(client)
 
         described_class.setup_audit_table!
@@ -765,9 +767,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       before do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+        setup_tables(client)
         described_class.setup!(client_options)
 
-        setup_tables(client)
         ingest_dummy_data_into_dummy_table(client)
 
         described_class.setup_audit_table!
@@ -908,9 +910,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       before do
         allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+        setup_tables(client)
         described_class.setup!(client_options)
 
-        setup_tables(client)
         ingest_dummy_data_into_dummy_table(client)
 
         described_class.setup_audit_table!
@@ -1051,9 +1053,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
       described_class.setup!(client_options)
 
-      setup_tables(client)
       ingest_dummy_data_into_dummy_table(client)
 
       described_class.setup_audit_table!
@@ -1133,9 +1135,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
       described_class.setup!(client_options)
 
-      setup_tables(client)
       ingest_dummy_data_into_dummy_table(client)
 
       described_class.setup_audit_table!

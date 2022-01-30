@@ -1,4 +1,3 @@
-# TODO: add client.schema to all queries. everything assumes its in the public schema
 # TODO: support dry run mode
 # TODO: Potential to refactor Orchestrator class and extract some functions into a utility/helper class
 # TODO: Refactor class level vars on Orchestrate. Might need some form of "Store".

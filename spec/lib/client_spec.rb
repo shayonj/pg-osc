@@ -6,7 +6,7 @@ RSpec.describe PgOnlineSchemaChange::Client do
     expect(client.host).to eq("127.0.0.1")
     expect(client.password).to eq("password")
     expect(client.alter_statement).to eq("ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;")
-    expect(client.schema).to eq("public")
+    expect(client.schema).to eq("test_schema")
     expect(client.dbname).to eq("postgres")
     expect(client.username).to eq("jamesbond")
     expect(client.port).to eq(5432)
