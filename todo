@@ -3,7 +3,6 @@
 # TODO: Refactor class level vars on Orchestrate. Might need some form of "Store".
 # TODO: Refactor specs. Most are behaving as integration specs. Separate into unit/ and integration/ for starters.
 # TODO: Release process - gem and dockerfile
-# TODO: Ensure all alter statement(s) belong to the same table
 # TODO: BEGIN ISOLATION LEVEL SERIALIZABLE for copying rows
 # TODO: SUPPORT TABLE RENAME?
 # TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name

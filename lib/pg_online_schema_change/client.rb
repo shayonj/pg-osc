@@ -23,6 +23,10 @@ module PgOnlineSchemaChange
 
       raise Error, "Not a valid ALTER statement: #{@alter_statement}" unless Query.alter_statement?(@alter_statement)
 
+      unless Query.same_table?(@alter_statement)
+        raise Error "All statements should belong to the same table: #{@alter_statement}"
+      end
+
       @table = Query.table(@alter_statement)
 
       PgOnlineSchemaChange.logger.debug("Connection established")
