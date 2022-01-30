@@ -20,7 +20,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     it "returns true with multiple alter statements" do
       query = <<~SQL
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
-        ALTER TABLE cards ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
       SQL
 
       expect(described_class.alter_statement?(query)).to eq(true)
@@ -29,6 +29,47 @@ RSpec.describe PgOnlineSchemaChange::Query do
     it "returns false with multiple statements and only one alter statement" do
       query = "ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE; CREATE DATABASE FOO;"
       expect(described_class.alter_statement?(query)).to eq(false)
+    end
+  end
+
+  describe ".same_table?" do
+    it "returns true" do
+      query = <<~SQL
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books RENAME COLUMN \"email\" to \"new_email\";
+      SQL
+
+      expect(described_class.same_table?(query)).to eq(true)
+    end
+
+    it "returns false" do
+      query = <<~SQL
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE cards RENAME COLUMN \"email\" to \"new_email\";
+      SQL
+
+      expect(described_class.same_table?(query)).to eq(false)
+    end
+
+    it "returns true" do
+      query = <<~SQL
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books RENAME COLUMN \"email\" to \"new_email\";
+      SQL
+
+      expect(described_class.same_table?(query)).to eq(true)
+    end
+
+    it "returns false" do
+      query = <<~SQL
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books RENAME COLUMN \"email\" to \"new_email\";
+        ALTER TABLE cards RENAME COLUMN \"email\" to \"new_email\";
+      SQL
+
+      expect(described_class.same_table?(query)).to eq(false)
     end
   end
 
@@ -259,7 +300,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     it "returns alter statement for shadow table when muliple queries are present" do
       query = <<~SQL
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
-        ALTER TABLE cards ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
+        ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
       SQL
 
       options = client_options.to_h.merge(

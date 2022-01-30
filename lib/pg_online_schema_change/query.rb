@@ -16,6 +16,20 @@ module PgOnlineSchemaChange
         false
       end
 
+      def same_table?(query)
+        tables = PgQuery.parse(query).tree.stmts.map do |statement|
+          if statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt)
+            statement.stmt.alter_table_stmt.relation.relname
+          elsif statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
+            statement.stmt.rename_stmt.relation.relname
+          end
+        end.compact
+
+        tables.uniq.count == 1
+      rescue PgQuery::ParseError => e
+        false
+      end
+
       def table(query)
         from_rename_statement = PgQuery.parse(query).tree.stmts.map do |statement|
           statement.stmt.rename_stmt&.relation&.relname
