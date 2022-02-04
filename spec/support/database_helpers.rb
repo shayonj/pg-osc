@@ -35,7 +35,7 @@ module DatabaseHelpers
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
-      );
+      ) WITH (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000);
 
       CREATE TABLE IF NOT EXISTS #{schema}.chapters (
         id serial PRIMARY KEY,

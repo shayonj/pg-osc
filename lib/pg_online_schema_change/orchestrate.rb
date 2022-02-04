@@ -6,7 +6,7 @@ module PgOnlineSchemaChange
       RESERVED_COLUMNS = %w[operation_type trigger_time].freeze
 
       attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns, :dropped_columns,
-                    :renamed_columns, :old_primary_table
+                    :renamed_columns, :old_primary_table, :primary_table_storage_parameters
 
       def init
         @dropped_columns = []
@@ -103,6 +103,8 @@ module PgOnlineSchemaChange
 
       # Disabling vacuum to avoid any issues during the process
       def disable_vacuum!
+        @primary_table_storage_parameters = Query.storage_parameters_for(client, client.table)
+
         PgOnlineSchemaChange.logger.debug("Disabling vacuum on shadow and audit table",
                                           { shadow_table: shadow_table, audit_table: audit_table })
         sql = <<~SQL
@@ -251,6 +253,7 @@ module PgOnlineSchemaChange
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{foreign_key_statements}
+          ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters})
         SQL
 
         Query.run(client.connection, sql)

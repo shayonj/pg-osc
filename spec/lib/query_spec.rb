@@ -471,4 +471,13 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(result).to eq([])
     end
   end
+
+  describe ".storage_parameters_for" do
+    it "returns all the parameters succesfully" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+
+      result = described_class.storage_parameters_for(client, "books")
+      expect(result).to eq("autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000")
+    end
+  end
 end

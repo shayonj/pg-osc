@@ -190,6 +190,19 @@ module PgOnlineSchemaChange
 
         columns.first
       end
+
+      def storage_parameters_for(client, table)
+        query = <<~SQL
+          SELECT array_to_string(reloptions, ',') as params FROM pg_class WHERE relname=\'#{table}\';
+        SQL
+
+        columns = []
+        run(client.connection, query) do |result|
+          columns = result.map { |row| row["params"] }
+        end
+
+        columns.first
+      end
     end
   end
 end
