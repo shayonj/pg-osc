@@ -292,13 +292,13 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                                                                       "pgosc_shadow_table_for_books")
       expect(foreign_keys).to eq([
                                    { "table_on" => "pgosc_shadow_table_for_books", "table_from" => "sellers",
-                                     "constraint_type" => "f", "constraint_name" => "pgosc_shadow_table_for_books_seller_id_fkey", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+                                     "constraint_type" => "f", "constraint_name" => "pgosc_shadow_table_for_books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
                                  ])
       primary_keys = PgOnlineSchemaChange::Query.get_primary_keys_for(client,
                                                                       "pgosc_shadow_table_for_books")
       expect(primary_keys).to eq([
                                    { "constraint_name" => "pgosc_shadow_table_for_books_pkey", "constraint_type" => "p",
-                                     "definition" => "PRIMARY KEY (user_id)", "table_from" => "-", "table_on" => "pgosc_shadow_table_for_books" },
+                                     "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)", "table_from" => "-", "table_on" => "pgosc_shadow_table_for_books" },
                                  ])
     end
 
@@ -1113,7 +1113,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     it "sucessfully renames the tables and transfers foreign keys" do
       result = [
         { "table_on" => "chapters", "table_from" => "books",
-          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
+          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
       ]
 
       # before (w/o not valid)
@@ -1124,7 +1124,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       result = [
         { "table_on" => "chapters", "table_from" => "books",
-          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID" },
+          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "f", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID" },
       ]
 
       # before (w/ not valid)
@@ -1170,6 +1170,47 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       end
 
       expect(rows[0]["last_analyze"]).not_to eq(nil)
+    end
+  end
+
+  describe ".validate_constraints!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
+      described_class.setup!(client_options)
+
+      ingest_dummy_data_into_dummy_table(client)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.disable_vacuum!
+      described_class.copy_data!
+      described_class.run_alter_statement!
+      described_class.replay_data!([])
+      described_class.swap!
+    end
+
+    it "sucessfully validates the constraints the tables" do
+      result = [
+        { "table_on" => "chapters", "table_from" => "books",
+          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "f", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID" },
+      ]
+
+      # swap has happened w/ not valid
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
+      expect(foreign_keys).to eq(result)
+
+      described_class.validate_constraints!
+
+      # w/o not valid
+      result[0]["constraint_validated"] = "t"
+      result[0]["definition"] = "FOREIGN KEY (book_id) REFERENCES books(user_id)"
+
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
+      expect(foreign_keys).to eq(result)
     end
   end
 

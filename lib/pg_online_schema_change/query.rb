@@ -104,6 +104,7 @@ module PgOnlineSchemaChange
                   confrelid::regclass AS table_from,
                   contype as constraint_type,
                   conname AS constraint_name,
+                  convalidated AS constraint_validated,
                   pg_get_constraintdef(oid) AS definition
           FROM   	pg_constraint
           WHERE  	contype IN ('f', 'p')
@@ -144,6 +145,16 @@ module PgOnlineSchemaChange
           drop_statement = "ALTER TABLE #{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
 
           "#{drop_statement} #{add_statement}"
+        end.join
+      end
+
+      def get_foreign_keys_to_validate(client, table)
+        references = get_all_constraints_for(client).select do |row|
+          row["table_from"] == table && row["constraint_type"] == "f"
+        end
+
+        references.map do |row|
+          "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
         end.join
       end
 

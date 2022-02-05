@@ -95,7 +95,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     let(:alter_query) { "ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey;" }
     let(:result) do
       { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
-        "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" }
+        "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" }
     end
 
     before do
@@ -117,10 +117,11 @@ RSpec.describe PgOnlineSchemaChange::Query do
       end
     end
 
-    it "runs the alter query succesfully" do
+    it "returns the alter query succesfully" do
       query = described_class.get_all_constraints_for(client).find do |row|
         row["constraint_name"] == "chapters_book_id_fkey"
       end
+
       expect(query).to eq(result)
 
       expect(client.connection).to receive(:async_exec).with("BEGIN;").twice.and_call_original
@@ -202,16 +203,17 @@ RSpec.describe PgOnlineSchemaChange::Query do
     it "returns all constraints" do
       result = [
         { "table_on" => "sellers", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "sellers_pkey",
-          "definition" => "PRIMARY KEY (id)" },
+          "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
         { "table_on" => "books", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "books_pkey",
-          "definition" => "PRIMARY KEY (user_id)" },
+          "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)" },
         { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
-          "constraint_name" => "books_seller_id_fkey", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+          "constraint_name" => "books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
         { "table_on" => "chapters", "table_from" => "-", "constraint_type" => "p",
-          "constraint_name" => "chapters_pkey", "definition" => "PRIMARY KEY (id)" },
+          "constraint_name" => "chapters_pkey", "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
         { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
-          "constraint_name" => "chapters_book_id_fkey", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
+          "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
       ]
+
       expect(described_class.get_all_constraints_for(client)).to eq(result)
     end
   end
@@ -230,7 +232,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     it "returns all constraints" do
       result = [
         { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
-          "constraint_name" => "books_seller_id_fkey", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+          "constraint_name" => "books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
       ]
       expect(described_class.get_foreign_keys_for(client, "books")).to eq(result)
     end
@@ -249,7 +251,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns all constraints" do
       result = [
-        { "constraint_name" => "books_pkey", "constraint_type" => "p", "definition" => "PRIMARY KEY (user_id)",
+        { "constraint_name" => "books_pkey", "constraint_type" => "p", "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)",
           "table_from" => "-", "table_on" => "books" },
       ]
       expect(described_class.get_primary_keys_for(client, "books")).to eq(result)
@@ -282,6 +284,23 @@ RSpec.describe PgOnlineSchemaChange::Query do
                           "ALTER TABLE chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
 
       expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
+    end
+  end
+
+  describe ".get_foreign_keys_to_validate" do
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    before do
+      setup_tables(client)
+    end
+
+    it "returns drop and add statements" do
+      result = "ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;"
+      expect(described_class.get_foreign_keys_to_validate(client, "books")).to eq(result)
     end
   end
 
