@@ -201,10 +201,7 @@ module PgOnlineSchemaChange
           columns = result.map { |row| row["params"] }
         end
 
-        result = columns.first
-        return "" if result.nil?
-
-        "ALTER TABLE #{client.table} SET (#{result})"
+        columns.first
       end
     end
   end

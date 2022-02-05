@@ -346,7 +346,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       described_class.disable_vacuum!
 
-      expect(described_class.primary_table_storage_parameters).to eq("ALTER TABLE books SET (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000)")
+      expect(described_class.primary_table_storage_parameters).to eq("autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000")
       RSpec::Mocks.space.reset_all
 
       query = <<~SQL

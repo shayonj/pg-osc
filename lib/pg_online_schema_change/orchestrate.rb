@@ -247,13 +247,14 @@ module PgOnlineSchemaChange
       def swap!
         @old_primary_table = "pgosc_old_primary_table_#{client.table}"
         foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
+        storage_params_reset = primary_table_storage_parameters.nil? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters})"
 
         sql = <<~SQL
           LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{foreign_key_statements}
-          #{primary_table_storage_parameters}
+          #{storage_params_reset}
         SQL
 
         Query.run(client.connection, sql)
