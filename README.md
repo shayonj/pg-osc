@@ -44,6 +44,7 @@ Options:
                                          # Default: 5432
   -w, --password=PASSWORD                # Password for the Database
   -v, [--verbose], [--no-verbose]        # Emit logs in debug mode
+  -f, [--drop], [--no-drop]              # Drop the original table in the end after the swap
 ```
 
 ```
