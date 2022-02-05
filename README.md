@@ -70,7 +70,8 @@ print the version
    - swap table names (shadow table <> parent table).
    - update references in other tables (FKs) by dropping and re-creating the FKs with a `NOT VALID`.
 8. Runs `ANALYZE` on the new table.
-9. Drop parent (now old) table (OPTIONAL).
+9. Validates all FKs that were added with `NOT VALID`.
+10. Drop parent (now old) table (OPTIONAL).
 
 ### Prominent features
 - It supports when a column is being added, dropped or renamed with no data loss. 
