@@ -172,16 +172,15 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns column names" do
       described_class.run(client.connection, new_dummy_table_sql)
+
       result = [
-        { "column_name" => "user_id", "type" => "integer", "column_position" => 1 },
-        { "column_name" => "username", "type" => "character varying(50)", "column_position" => 2 },
-        { "column_name" => "seller_id", "type" => "integer", "column_position" => 3 },
-        { "column_name" => "password", "type" => "character varying(50)", "column_position" => 4 },
-        { "column_name" => "email", "type" => "character varying(255)", "column_position" => 5 },
-        { "column_name" => "created_on", "type" => "timestamp without time zone",
-          "column_position" => 6 },
-        { "column_name" => "last_login", "type" => "timestamp without time zone",
-          "column_position" => 7 },
+        { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1 },
+        { "column_name" => "\"username\"", "type" => "character varying(50)", "column_position" => 2 },
+        { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3 },
+        { "column_name" => "\"password\"", "type" => "character varying(50)", "column_position" => 4 },
+        { "column_name" => "\"email\"", "type" => "character varying(255)", "column_position" => 5 },
+        { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone", "column_position" => 6 },
+        { "column_name" => "\"last_login\"", "type" => "timestamp without time zone", "column_position" => 7 },
       ]
 
       expect(described_class.table_columns(client)).to eq(result)

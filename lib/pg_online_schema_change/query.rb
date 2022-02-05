@@ -64,6 +64,7 @@ module PgOnlineSchemaChange
 
         run(client.connection, sql) do |result|
           mapped_columns = result.map do |row|
+            row["column_name"] = client.connection.quote_ident(row["column_name"])
             row["column_position"] = row["column_position"].to_i
             row
           end

@@ -24,7 +24,7 @@ module DatabaseHelpers
       CREATE TABLE IF NOT EXISTS #{schema}.sellers (
         id serial PRIMARY KEY,
         name VARCHAR ( 50 ) UNIQUE NOT NULL,
-        created_on TIMESTAMP NOT NULL,
+        "createdOn" TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
 
@@ -34,7 +34,7 @@ module DatabaseHelpers
         seller_id SERIAL REFERENCES #{schema}.sellers NOT NULL,
         password VARCHAR ( 50 ) NOT NULL,
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
-        created_on TIMESTAMP NOT NULL,
+        "createdOn" TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       ) WITH (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000);
 
@@ -42,7 +42,7 @@ module DatabaseHelpers
         id serial PRIMARY KEY,
         name VARCHAR ( 50 ) UNIQUE NOT NULL,
         book_id SERIAL REFERENCES #{schema}.books NOT NULL,
-        created_on TIMESTAMP NOT NULL,
+        "createdOn" TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
 
@@ -64,10 +64,10 @@ module DatabaseHelpers
   def ingest_dummy_data_into_dummy_table(client = nil)
     client ||= PgOnlineSchemaChange::Client.new(client_options)
     query = <<~SQL
-      INSERT INTO "#{schema}"."sellers"("name", "created_on", "last_login")
+      INSERT INTO "#{schema}"."sellers"("name", "createdOn", "last_login")
       VALUES('local shop', 'now()', 'now()');
 
-      INSERT INTO "#{schema}"."books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
+      INSERT INTO "#{schema}"."books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
       VALUES
         (2, 1, 'jamesbond2', '007', 'james1@bond.com', 'now()', 'now()'),
         (3, 1, 'jamesbond3', '008', 'james2@bond.com', 'now()', 'now()'),
