@@ -6,7 +6,7 @@ module PgOnlineSchemaChange
       RESERVED_COLUMNS = %w[operation_type trigger_time].freeze
 
       attr_accessor :client, :audit_table, :shadow_table, :primary_key, :parent_table_columns, :dropped_columns,
-                    :renamed_columns, :old_primary_table
+                    :renamed_columns, :old_primary_table, :primary_table_storage_parameters
 
       def init
         @dropped_columns = []
@@ -42,11 +42,11 @@ module PgOnlineSchemaChange
         run_analyze!
         replay_and_swap!
         run_analyze!
-        # drop_and_cleanup!
+        drop_and_cleanup!
       rescue StandardError => e
         PgOnlineSchemaChange.logger.fatal("Something went wrong: #{e.message}", { e: e })
 
-        # drop_and_cleanup!
+        drop_and_cleanup!
 
         raise e
       end
@@ -103,6 +103,8 @@ module PgOnlineSchemaChange
 
       # Disabling vacuum to avoid any issues during the process
       def disable_vacuum!
+        @primary_table_storage_parameters = Query.storage_parameters_for(client, client.table)
+
         PgOnlineSchemaChange.logger.debug("Disabling vacuum on shadow and audit table",
                                           { shadow_table: shadow_table, audit_table: audit_table })
         sql = <<~SQL
@@ -245,12 +247,14 @@ module PgOnlineSchemaChange
       def swap!
         @old_primary_table = "pgosc_old_primary_table_#{client.table}"
         foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
+        storage_params_reset = primary_table_storage_parameters.nil? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters})"
 
         sql = <<~SQL
           LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{foreign_key_statements}
+          #{storage_params_reset}
         SQL
 
         Query.run(client.connection, sql)
@@ -260,7 +264,18 @@ module PgOnlineSchemaChange
         Query.run(client.connection, "ANALYZE VERBOSE #{client.table};")
       end
 
-      def drop_and_cleanup!; end
+      def drop_and_cleanup!
+        drop_primary = client.drop ? "DROP TABLE IF EXISTS #{old_primary_table};" : ""
+
+        sql = <<~SQL
+          DROP TABLE IF EXISTS #{audit_table};
+          #{drop_primary}
+          RESET statement_timeout;
+          RESET client_min_messages;
+        SQL
+
+        Query.run(client.connection, sql)
+      end
 
       def primary_key
         @primary_key ||= Query.primary_key_for(client, client.table)

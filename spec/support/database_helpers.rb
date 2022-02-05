@@ -12,6 +12,7 @@ module DatabaseHelpers
       username: ENV["POSTGRES_USER"] || "jamesbond",
       password: ENV["POSTGRES_PASSWORD"] || "password",
       port: ENV["port"] || 5432,
+      drop: false,
     }
     Struct.new(*options.keys).new(*options.values)
   end
@@ -35,7 +36,7 @@ module DatabaseHelpers
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
-      );
+      ) WITH (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000);
 
       CREATE TABLE IF NOT EXISTS #{schema}.chapters (
         id serial PRIMARY KEY,
@@ -44,6 +45,8 @@ module DatabaseHelpers
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
+
+      ALTER ROLE jamesbond SET statement_timeout = 60000;
     SQL
   end
 

@@ -471,4 +471,20 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(result).to eq([])
     end
   end
+
+  describe ".storage_parameters_for" do
+    it "returns all the parameters succesfully" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+
+      result = described_class.storage_parameters_for(client, "books")
+      expect(result).to eq("autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000")
+    end
+
+    it "returns empty string when no sotrage params exist" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+
+      result = described_class.storage_parameters_for(client, "sellers")
+      expect(result).to eq(nil)
+    end
+  end
 end
