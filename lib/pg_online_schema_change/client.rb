@@ -2,7 +2,7 @@ require "pg"
 
 module PgOnlineSchemaChange
   class Client
-    attr_accessor :alter_statement, :schema, :dbname, :host, :username, :port, :password, :connection, :table
+    attr_accessor :alter_statement, :schema, :dbname, :host, :username, :port, :password, :connection, :table, :drop
 
     def initialize(options)
       @alter_statement = options.alter_statement
@@ -12,6 +12,7 @@ module PgOnlineSchemaChange
       @username = options.username
       @port = options.port
       @password = options.password
+      @drop = options.drop
 
       @connection = PG.connect(
         dbname: @dbname,

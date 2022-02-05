@@ -42,11 +42,11 @@ module PgOnlineSchemaChange
         run_analyze!
         replay_and_swap!
         run_analyze!
-        # drop_and_cleanup!
+        drop_and_cleanup!
       rescue StandardError => e
         PgOnlineSchemaChange.logger.fatal("Something went wrong: #{e.message}", { e: e })
 
-        # drop_and_cleanup!
+        drop_and_cleanup!
 
         raise e
       end
@@ -253,7 +253,7 @@ module PgOnlineSchemaChange
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{foreign_key_statements}
-          ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters})
+          #{primary_table_storage_parameters}
         SQL
 
         Query.run(client.connection, sql)
@@ -263,7 +263,18 @@ module PgOnlineSchemaChange
         Query.run(client.connection, "ANALYZE VERBOSE #{client.table};")
       end
 
-      def drop_and_cleanup!; end
+      def drop_and_cleanup!
+        drop_primary = client.drop ? "DROP TABLE IF EXISTS #{old_primary_table};" : ""
+
+        sql = <<~SQL
+          DROP TABLE IF EXISTS #{audit_table};
+          #{drop_primary}
+          RESET statement_timeout;
+          RESET client_min_messages;
+        SQL
+
+        Query.run(client.connection, sql)
+      end
 
       def primary_key
         @primary_key ||= Query.primary_key_for(client, client.table)

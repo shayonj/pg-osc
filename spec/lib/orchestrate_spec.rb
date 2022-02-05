@@ -346,7 +346,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       described_class.disable_vacuum!
 
-      expect(described_class.primary_table_storage_parameters).to eq("autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000")
+      expect(described_class.primary_table_storage_parameters).to eq("ALTER TABLE books SET (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000)")
       RSpec::Mocks.space.reset_all
 
       query = <<~SQL
@@ -1170,6 +1170,85 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       end
 
       expect(rows[0]["last_analyze"]).not_to eq(nil)
+    end
+  end
+
+  describe ".drop_and_cleanup!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
+      described_class.setup!(client_options)
+
+      ingest_dummy_data_into_dummy_table(client)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.disable_vacuum!
+      described_class.copy_data!
+      described_class.run_alter_statement!
+      described_class.replay_data!([])
+      described_class.swap!
+    end
+
+    it "sucessfully drops audit table" do
+      described_class.drop_and_cleanup!
+
+      query = <<~SQL
+        SELECT to_regclass(\'#{described_class.audit_table}\') as exists;
+      SQL
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows[0]["exists"]).to eq(nil)
+    end
+
+    it "sucessfully resets session vars" do
+      described_class.drop_and_cleanup!
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, "SHOW statement_timeout;") do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows[0]["statement_timeout"]).to eq("1min")
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, "SHOW client_min_messages;") do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows[0]["client_min_messages"]).to eq("notice")
+    end
+
+    describe "primary table" do
+      let(:client) do
+        options = client_options.to_h.merge(
+          drop: true,
+        )
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      it "sucessfully drops primary table" do
+        described_class.drop_and_cleanup!
+
+        query = <<~SQL
+          SELECT to_regclass(\'#{described_class.old_primary_table}\') as exists;
+        SQL
+
+        rows = []
+        PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+          rows = result.map { |row| row }
+        end
+
+        expect(rows[0]["exists"]).to eq(nil)
+      end
     end
   end
 end

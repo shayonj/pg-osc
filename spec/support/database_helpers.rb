@@ -12,6 +12,7 @@ module DatabaseHelpers
       username: ENV["POSTGRES_USER"] || "jamesbond",
       password: ENV["POSTGRES_PASSWORD"] || "password",
       port: ENV["port"] || 5432,
+      drop: false,
     }
     Struct.new(*options.keys).new(*options.values)
   end
@@ -44,6 +45,8 @@ module DatabaseHelpers
         created_on TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
+
+      ALTER ROLE jamesbond SET statement_timeout = 60000;
     SQL
   end
 

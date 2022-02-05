@@ -12,6 +12,7 @@ RSpec.describe PgOnlineSchemaChange::Client do
     expect(client.port).to eq(5432)
     expect(client.connection).to be_instance_of(PG::Connection)
     expect(client.table).to eq("books")
+    expect(client.drop).to eq(false)
   end
 
   it "raises error query is not ALTER" do

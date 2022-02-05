@@ -23,7 +23,7 @@ Or install it yourself as:
     $ gem install pg_online_schema_change
 
 ## Requirements
-- PostgreSQL 9.3 and later
+- PostgreSQL 9.6 and later
 - Ruby 2.6 and later
 - Database user should have permissions for `TRIGGER` and/or a `SUPERUSER`
 
