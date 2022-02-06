@@ -34,17 +34,20 @@ Usage:
   pg-online-schema-change perform -a, --alter-statement=ALTER_STATEMENT -d, --dbname=DBNAME -h, --host=HOST -p, --port=N -s, --schema=SCHEMA -u, --username=USERNAME -w, --password=PASSWORD
 
 Options:
-  -a, --alter-statement=ALTER_STATEMENT  # The ALTER statement to perform the schema change
-  -s, --schema=SCHEMA                    # The schema in which the table is
-                                         # Default: public
-  -d, --dbname=DBNAME                    # Name of the database
-  -h, --host=HOST                        # Server host where the Database is located
-  -u, --username=USERNAME                # Username for the Database
-  -p, --port=N                           # Port for the Database
-                                         # Default: 5432
-  -w, --password=PASSWORD                # Password for the Database
-  -v, [--verbose], [--no-verbose]        # Emit logs in debug mode
-  -f, [--drop], [--no-drop]              # Drop the original table in the end after the swap
+  -a, --alter-statement=ALTER_STATEMENT        # The ALTER statement to perform the schema change
+  -s, --schema=SCHEMA                          # The schema in which the table is
+                                               # Default: public
+  -d, --dbname=DBNAME                          # Name of the database
+  -h, --host=HOST                              # Server host where the Database is located
+  -u, --username=USERNAME                      # Username for the Database
+  -p, --port=N                                 # Port for the Database
+                                               # Default: 5432
+  -w, --password=PASSWORD                      # Password for the Database
+  -v, [--verbose], [--no-verbose]              # Emit logs in debug mode
+  -f, [--drop], [--no-drop]                    # Drop the original table in the end after the swap
+  -k, [--kill-backends], [--no-kill-backends]  # Kill other competing queries/backends when trying to acquire lock for the swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times.
+  -w, [--wait-time-for-lock=N]                 # Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock.
+                                               # Default: 10
 ```
 
 ```

@@ -6,6 +6,7 @@ module PgOnlineSchemaChange
     INDEX_SUFFIX = "_pgosc".freeze
     DROPPED_COLUMN_TYPE = :AT_DropColumn
     RENAMED_COLUMN_TYPE = :AT_RenameColumn
+    LOCK_ATTEMPT = 4
 
     class << self
       def alter_statement?(query)
@@ -38,6 +39,8 @@ module PgOnlineSchemaChange
       end
 
       def run(connection, query, &block)
+        connection.cancel if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
+
         PgOnlineSchemaChange.logger.debug("Running query", { query: query })
 
         connection.async_exec("BEGIN;")
@@ -214,6 +217,46 @@ module PgOnlineSchemaChange
         end
 
         columns.first
+      end
+
+      # This function acquires the lock and keeps the transaction
+      # open. If a lock is acquired, its upon the caller
+      # to call COMMIT to end the transaction. If a lock
+      # is not acquired, transaction is closed and a new transaction
+      # is started to acquire lock again
+      def open_lock_exclusive(client, table)
+        attempts ||= 1
+
+        client.connection.async_exec("SET lock_timeout = '#{client.wait_time_for_lock}s'; BEGIN;")
+        client.connection.async_exec("LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;")
+
+        true
+      rescue PG::LockNotAvailable, PG::InFailedSqlTransaction
+        if (attempts += 1) < LOCK_ATTEMPT
+          PgOnlineSchemaChange.logger.info("Couldn't acquire lock, attempt: #{attempts}")
+
+          client.connection.async_exec("COMMIT; RESET lock_timeout;")
+          kill_backends(client, table)
+
+          retry
+        end
+
+        PgOnlineSchemaChange.logger.info("Lock acquire failed")
+        client.connection.async_exec("COMMIT; RESET lock_timeout;")
+
+        false
+      end
+
+      def kill_backends(client, table)
+        return unless client.kill_backends
+
+        PgOnlineSchemaChange.logger.info("Terminating other backends")
+
+        query = <<~SQL
+          SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'relation' AND relation = \'#{table}\'::regclass::oid AND pid <> pg_backend_pid()
+        SQL
+
+        client.connection.async_exec(query)
       end
     end
   end

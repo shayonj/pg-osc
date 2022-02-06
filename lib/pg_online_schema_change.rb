@@ -13,14 +13,15 @@ require "pg_online_schema_change/orchestrate"
 module PgOnlineSchemaChange
   class Error < StandardError; end
   class CountBelowDelta < StandardError; end
+  class AccessExclusiveLockNotAcquired < StandardError; end
 
   def self.logger=(verbose)
     @@logger ||= begin
-      logger = Ougai::Logger.new($stdout)
-      logger.level = verbose ? Ougai::Logger::TRACE : Ougai::Logger::INFO
-      logger.with_fields = { version: PgOnlineSchemaChange::VERSION }
-      logger
-    end
+        logger = Ougai::Logger.new($stdout)
+        logger.level = verbose ? Ougai::Logger::TRACE : Ougai::Logger::INFO
+        logger.with_fields = { version: PgOnlineSchemaChange::VERSION }
+        logger
+      end
   end
 
   def self.logger

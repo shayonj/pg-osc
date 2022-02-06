@@ -7,3 +7,5 @@
 # TODO: SUPPORT TABLE RENAME?
 # TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name
 # TODO: Could hold access share lock on clien.table (primary table) to avoid any DDLs
+# TODO: replay all remaining rows from audit table (since acquiring lock could have been a while)
+# TODO: DROP trigger on screenshots needs to happen from within swap (since the acquire lock exists)

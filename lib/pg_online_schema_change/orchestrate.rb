@@ -263,10 +263,13 @@ module PgOnlineSchemaChange
 
         @old_primary_table = "pgosc_old_primary_table_#{client.table}"
         foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
-        storage_params_reset = primary_table_storage_parameters.nil? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters})"
+        storage_params_reset = primary_table_storage_parameters.nil? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});"
+
+        opened = Query.open_lock_exclusive(client, client.table)
+
+        raise AccessExclusiveLockNotAcquired unless opened
 
         sql = <<~SQL
-          LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{foreign_key_statements}
@@ -274,6 +277,8 @@ module PgOnlineSchemaChange
         SQL
 
         Query.run(client.connection, sql)
+      ensure
+        Query.run(client.connection, "COMMIT;")
       end
 
       def run_analyze!
@@ -302,6 +307,7 @@ module PgOnlineSchemaChange
           #{primary_drop}
           RESET statement_timeout;
           RESET client_min_messages;
+          RESET lock_timeout;
         SQL
 
         Query.run(client.connection, sql)

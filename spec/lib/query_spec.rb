@@ -505,4 +505,188 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(result).to eq(nil)
     end
   end
+
+  describe ".open_lock_exclusive" do
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    before do
+      setup_tables(client)
+    end
+
+    it "succesfully acquires lock on first attempt and returns true" do
+      query = "SELECT * FROM pg_locks WHERE locktype = 'relation' AND relation='#{client.table}'::regclass::oid"
+      lock = []
+
+      # Ensure lock is not present on books table (OID)
+      described_class.run(client.connection, query) do |result|
+        lock = result.map { |row| row }
+      end
+      expect(lock).to eq([])
+
+      acquired = described_class.open_lock_exclusive(client, client.table)
+      expect(acquired).to eq(true)
+
+      # Ensure lock is present on books table (OID)
+      described_class.run(client.connection, query) do |result|
+        lock = result.map { |row| row }
+      end
+
+      expect(lock.size).to eq(1)
+      expect(lock.first["mode"]).to eq("AccessExclusiveLock")
+      expect(lock.first["granted"]).to eq("t")
+      expect(lock.first["pid"].to_i).to eq(client.connection.backend_pid)
+
+      client.connection.async_exec("COMMIT;")
+    end
+  end
+
+  describe ".open_lock_exclusive with forked process and kills backend" do
+    it "cannot acquire lock at first, kills backend (forked process), sucesfully acquires lock and returns true" do
+      pid = fork do
+        new_client = PgOnlineSchemaChange::Client.new(client_options)
+        setup_tables(new_client)
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+
+        sleep 50
+      rescue StandardError => e
+        puts e.inspect
+        # do nothing. there err messages from backend being terminated and/or
+        # query being cancelled
+      end
+      Process.detach(pid)
+
+      options = client_options.to_h.merge(
+        kill_backends: true,
+      )
+      client_options = Struct.new(*options.keys).new(*options.values)
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client.connection.async_exec("SET search_path to #{client.schema};")
+
+      sleep 0.5
+
+      acquired = described_class.open_lock_exclusive(client, client.table)
+      expect(acquired).to eq(true)
+
+      client.connection.async_exec("COMMIT;")
+    end
+  end
+
+  describe ".open_lock_exclusive with forked process" do
+    it "cannot acquire lock and returns false" do
+      # acquire a lock from another process to test
+      pid = fork do
+        new_client = PgOnlineSchemaChange::Client.new(client_options)
+        setup_tables(new_client)
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+
+        sleep 50
+      rescue StandardError
+        # do nothing. there err messages from backend being terminated and/or
+        # query being cancelled
+      end
+      Process.detach(pid)
+
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client.connection.async_exec("SET search_path to #{client.schema};")
+
+      sleep 0.5
+
+      acquired = described_class.open_lock_exclusive(client, client.table)
+      expect(acquired).to eq(false)
+    ensure
+      Process.kill("KILL", pid)
+    end
+
+    # This test is ensuring on last try it can acquire lock.
+    # It does so by ensuring the forked process dies after 10s
+    # thus losing the lock and since the wait_time_for_lock is for 5
+    # it will/should pass on 3rd try (>10s).
+    it "acquires lock on 3rd try and returns true" do
+      pid = fork do
+        new_client = PgOnlineSchemaChange::Client.new(client_options)
+        setup_tables(new_client)
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+
+        sleep 10
+      rescue StandardError
+        # do nothing. there err messages from backend being terminated and/or
+        # query being cancelled
+      end
+      Process.detach(pid)
+
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client.connection.async_exec("SET search_path to #{client.schema};")
+
+      sleep 0.5
+
+      acquired = described_class.open_lock_exclusive(client, client.table)
+      expect(acquired).to eq(true)
+
+      query = "SELECT * FROM pg_locks WHERE locktype = 'relation' AND relation='#{client.table}'::regclass::oid"
+      lock = []
+
+      described_class.run(client.connection, query) do |result|
+        lock = result.map { |row| row }
+      end
+      expect(lock.size).to eq(1)
+      expect(lock.first["mode"]).to eq("AccessExclusiveLock")
+      expect(lock.first["granted"]).to eq("t")
+      expect(lock.first["pid"].to_i).to eq(client.connection.backend_pid)
+
+      client.connection.async_exec("COMMIT;")
+    end
+  end
+
+  describe ".kill_backends" do
+    it "returns empty response when no queries are present to kill" do
+      options = client_options.to_h.merge(
+        kill_backends: true,
+      )
+      client_options = Struct.new(*options.keys).new(*options.values)
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+
+      client.connection.async_exec("SET search_path to #{client.schema};")
+      result = described_class.kill_backends(client, client.table).map { |n| n }
+      expect(result.first).to eq(nil)
+    end
+
+    it "succesfully kills open transaction/backends" do
+      # acquire a lock from another process to test
+
+      pid = fork do
+        new_client = PgOnlineSchemaChange::Client.new(client_options)
+        setup_tables(new_client)
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+
+        sleep 5
+      rescue StandardError
+        # do nothing. there err messages from backend being terminated and/or
+        # query being cancelled
+      end
+      Process.detach(pid)
+
+      options = client_options.to_h.merge(
+        kill_backends: true,
+      )
+      client_options = Struct.new(*options.keys).new(*options.values)
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+
+      client.connection.async_exec("SET search_path to #{client.schema};")
+
+      result = described_class.kill_backends(client, client.table).map { |n| n }
+
+      expect(result.first).to eq({ "pg_terminate_backend" => "t" })
+    ensure
+      Process.kill("KILL", pid)
+    end
+  end
 end
