@@ -1128,6 +1128,16 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
       expect(foreign_keys).to eq(result)
     end
+
+    it "closes transaction when it couldn't acquire lock" do
+      expect(PgOnlineSchemaChange::Query).to receive(:get_foreign_keys_to_refresh).with(client, client.table)
+      expect(PgOnlineSchemaChange::Query).to receive(:run).with(client.connection, "COMMIT;").once.and_call_original
+      expect(PgOnlineSchemaChange::Query).to receive(:open_lock_exclusive).and_raise(PgOnlineSchemaChange::AccessExclusiveLockNotAcquired)
+
+      expect do
+        described_class.swap!
+      end.to raise_error(PgOnlineSchemaChange::AccessExclusiveLockNotAcquired)
+    end
   end
 
   describe ".run_analyze!" do

@@ -15,6 +15,10 @@ module PgOnlineSchemaChange
     method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Emit logs in debug mode"
     method_option :drop, aliases: "-f", type: :boolean, default: false,
                          desc: "Drop the original table in the end after the swap"
+    method_option :kill_backends, aliases: "-k", type: :boolean, default: false,
+                                  desc: "Kill other competing queries/backends when trying to acquire lock for the swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times."
+    method_option :wait_time_for_lock, aliases: "-w", type: :numeric, default: 10,
+                                       desc: "Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock."
 
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)

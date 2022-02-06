@@ -13,6 +13,8 @@ module DatabaseHelpers
       password: ENV["POSTGRES_PASSWORD"] || "password",
       port: ENV["port"] || 5432,
       drop: false,
+      kill_backends: false,
+      wait_time_for_lock: 5,
     }
     Struct.new(*options.keys).new(*options.values)
   end
