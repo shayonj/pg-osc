@@ -1107,26 +1107,26 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                              "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_email_key ON books USING btree (email)"])
     end
 
-    it "sucessfully renames the tables and transfers foreign keys" do
-      result = [
-        { "table_on" => "chapters", "table_from" => "books",
-          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
-      ]
+    it "sucessfully drops the trigger" do
+      result = []
 
-      # before (w/o not valid)
-      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
-      expect(foreign_keys).to eq(result)
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection,
+                                      "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';") do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows.count).to eq(3)
+      expect(rows.map { |n| n["trigger_name"] }.uniq).to eq(["primary_to_audit_table_trigger"])
 
       described_class.swap!
 
-      result = [
-        { "table_on" => "chapters", "table_from" => "books",
-          "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "f", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID" },
-      ]
-
-      # before (w/ not valid)
-      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
-      expect(foreign_keys).to eq(result)
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection,
+                                      "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';") do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows.count).to eq(0)
     end
 
     it "closes transaction when it couldn't acquire lock" do

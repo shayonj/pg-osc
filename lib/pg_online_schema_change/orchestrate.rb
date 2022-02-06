@@ -265,6 +265,9 @@ module PgOnlineSchemaChange
         foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
         storage_params_reset = primary_table_storage_parameters.nil? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});"
 
+        # From here on, all statements are carried out in a single
+        # transaction with access exclusive lock
+
         opened = Query.open_lock_exclusive(client, client.table)
 
         raise AccessExclusiveLockNotAcquired unless opened
@@ -274,6 +277,7 @@ module PgOnlineSchemaChange
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{foreign_key_statements}
           #{storage_params_reset}
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
         SQL
 
         Query.run(client.connection, sql)
@@ -301,7 +305,6 @@ module PgOnlineSchemaChange
         shadow_table_drop = shadow_table ? "DROP TABLE IF EXISTS #{shadow_table}" : ""
 
         sql = <<~SQL
-          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
           #{audit_table_drop};
           #{shadow_table_drop};
           #{primary_drop}
