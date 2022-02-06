@@ -129,7 +129,6 @@ module PgOnlineSchemaChange
 
         @parent_table_columns = Query.table_columns(client).map { |entry| entry["column_name"] }
         columns = parent_table_columns.join(", ")
-
         sql = <<~SQL
           INSERT INTO #{shadow_table}
           SELECT #{columns}
@@ -179,6 +178,7 @@ module PgOnlineSchemaChange
         PgOnlineSchemaChange.logger.info("Replaying rows, count: #{rows.size}")
 
         to_be_deleted_rows = []
+        to_be_replayed = []
         rows.each do |row|
           new_row = row.dup
 
@@ -203,6 +203,16 @@ module PgOnlineSchemaChange
 
           new_row = new_row.compact
 
+          # quote indent column to preserve case insensitivity
+          # ensure rows are escaped
+          new_row = new_row.transform_keys do |column|
+            client.connection.quote_ident(column)
+          end
+
+          new_row = new_row.transform_values do |value|
+            client.connection.escape_string(value)
+          end
+
           case row["operation_type"]
           when "INSERT"
             values = new_row.map { |_, val| "'#{val}'" }.join(",")
@@ -211,9 +221,9 @@ module PgOnlineSchemaChange
               INSERT INTO #{shadow_table} (#{new_row.keys.join(",")})
               VALUES (#{values});
             SQL
-            Query.run(client.connection, sql)
+            to_be_replayed << sql
 
-            to_be_deleted_rows << new_row[primary_key]
+            to_be_deleted_rows << "'#{row[primary_key]}'"
           when "UPDATE"
             set_values = new_row.map do |column, value|
               "#{column} = '#{value}'"
@@ -224,17 +234,20 @@ module PgOnlineSchemaChange
               SET #{set_values}
               WHERE #{primary_key}=\'#{row[primary_key]}\';
             SQL
-            Query.run(client.connection, sql)
+            to_be_replayed << sql
 
-            to_be_deleted_rows << row[primary_key]
+            to_be_deleted_rows << "'#{row[primary_key]}'"
           when "DELETE"
             sql = <<~SQL
               DELETE FROM #{shadow_table} WHERE #{primary_key}=\'#{row[primary_key]}\';
             SQL
-            Query.run(client.connection, sql)
-            to_be_deleted_rows << row[primary_key]
+            to_be_replayed << sql
+
+            to_be_deleted_rows << "'#{row[primary_key]}'"
           end
         end
+
+        Query.run(client.connection, to_be_replayed.join)
 
         # Delete items from the audit now that are replayed
         if to_be_deleted_rows.count >= 1
@@ -278,11 +291,15 @@ module PgOnlineSchemaChange
       end
 
       def drop_and_cleanup!
-        drop_primary = client.drop ? "DROP TABLE IF EXISTS #{old_primary_table};" : ""
+        primary_drop = client.drop ? "DROP TABLE IF EXISTS #{old_primary_table};" : ""
+        audit_table_drop = audit_table ? "DROP TABLE IF EXISTS #{audit_table}" : ""
+        shadow_table_drop = shadow_table ? "DROP TABLE IF EXISTS #{shadow_table}" : ""
 
         sql = <<~SQL
-          DROP TABLE IF EXISTS #{audit_table};
-          #{drop_primary}
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
+          #{audit_table_drop};
+          #{shadow_table_drop};
+          #{primary_drop}
           RESET statement_timeout;
           RESET client_min_messages;
         SQL

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "pry"
 RSpec.describe PgOnlineSchemaChange::Orchestrate do
   describe ".setup!" do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
@@ -78,24 +77,22 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       RSpec::Mocks.space.reset_all
       columns = PgOnlineSchemaChange::Query.table_columns(client, "pgosc_audit_table_for_books")
+
       expect(columns).to eq([
-                              { "column_name" => "operation_type", "type" => "text",
-                                "column_position" => 1 },
-                              { "column_name" => "trigger_time", "type" => "timestamp without time zone",
+                              { "column_name" => "\"operation_type\"", "type" => "text", "column_position" => 1 },
+                              { "column_name" => "\"trigger_time\"", "type" => "timestamp without time zone",
                                 "column_position" => 2 },
-                              { "column_name" => "user_id", "type" => "integer",
-                                "column_position" => 3 },
-                              { "column_name" => "username", "type" => "character varying(50)",
+                              { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 3 },
+                              { "column_name" => "\"username\"", "type" => "character varying(50)",
                                 "column_position" => 4 },
-                              { "column_name" => "seller_id", "type" => "integer",
-                                "column_position" => 5 },
-                              { "column_name" => "password", "type" => "character varying(50)",
+                              { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 5 },
+                              { "column_name" => "\"password\"", "type" => "character varying(50)",
                                 "column_position" => 6 },
-                              { "column_name" => "email", "type" => "character varying(255)",
+                              { "column_name" => "\"email\"", "type" => "character varying(255)",
                                 "column_position" => 7 },
-                              { "column_name" => "created_on", "type" => "timestamp without time zone",
+                              { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone",
                                 "column_position" => 8 },
-                              { "column_name" => "last_login", "type" => "timestamp without time zone",
+                              { "column_name" => "\"last_login\"", "type" => "timestamp without time zone",
                                 "column_position" => 9 },
                             ])
     end
@@ -180,11 +177,11 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.setup_trigger!
 
       query = <<~SQL
-        INSERT INTO "sellers"("name", "created_on", "last_login")
+        INSERT INTO "sellers"("name", "createdOn", "last_login")
         VALUES('local shop', 'now()', 'now()');
 
-        INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
-        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+        INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
 
         UPDATE books SET username = 'bondjames'
         WHERE user_id='1';
@@ -212,7 +209,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         "username" => "jamesbond",
         "password" => "007",
         "email" => "james@bond.com",
-        "created_on" => be_instance_of(String),
+        "createdOn" => be_instance_of(String),
         "last_login" => be_instance_of(String),
       )
 
@@ -224,7 +221,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         "username" => "bondjames",
         "password" => "007",
         "email" => "james@bond.com",
-        "created_on" => be_instance_of(String),
+        "createdOn" => be_instance_of(String),
         "last_login" => be_instance_of(String),
       )
 
@@ -236,7 +233,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         "username" => "bondjames",
         "password" => "007",
         "email" => "james@bond.com",
-        "created_on" => be_instance_of(String),
+        "createdOn" => be_instance_of(String),
         "last_login" => be_instance_of(String),
       )
     end
@@ -266,21 +263,20 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       RSpec::Mocks.space.reset_all
       columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.shadow_table)
+
       expect(columns).to eq([
-                              { "column_name" => "user_id", "type" => "integer",
-                                "column_position" => 1 },
-                              { "column_name" => "username", "type" => "character varying(50)",
+                              { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1 },
+                              { "column_name" => "\"username\"", "type" => "character varying(50)",
                                 "column_position" => 2 },
-                              { "column_name" => "seller_id", "type" => "integer",
-                                "column_position" => 3 },
-                              { "column_name" => "password", "type" => "character varying(50)",
+                              { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3 },
+                              { "column_name" => "\"password\"", "type" => "character varying(50)",
                                 "column_position" => 4 },
-                              { "column_name" => "email", "type" => "character varying(255)",
+                              { "column_name" => "\"email\"", "type" => "character varying(255)",
                                 "column_position" => 5 },
-                              { "column_name" => "created_on", "type" => "timestamp without time zone",
+                              { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone",
                                 "column_position" => 6 },
-                              { "column_name" => "last_login",
-                                "type" => "timestamp without time zone", "column_position" => 7 },
+                              { "column_name" => "\"last_login\"", "type" => "timestamp without time zone",
+                                "column_position" => 7 },
                             ])
 
       columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "pgosc_shadow_table_for_books")
@@ -390,7 +386,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       SQL
       insert_query = <<~SQL
         INSERT INTO pgosc_shadow_table_for_books
-        SELECT user_id, username, seller_id, password, email, created_on, last_login
+        SELECT \"user_id\", \"username\", \"seller_id\", \"password\", \"email\", \"createdOn\", \"last_login\"
         FROM ONLY books
       SQL
       expect(client.connection).to receive(:async_exec).with("BEGIN;").twice.and_call_original
@@ -417,7 +413,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(rows.map do |r|
         r["email"]
       end).to eq(["james1@bond.com", "james2@bond.com", "james3@bond.com"])
-      expect(rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+      expect(rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
       expect(rows.all? { |r| !r["last_login"].nil? }).to eq(true)
     end
   end
@@ -443,23 +439,21 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       RSpec::Mocks.space.reset_all
 
       columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.shadow_table)
+
       expect(columns).to eq([
-                              { "column_name" => "user_id", "type" => "integer",
-                                "column_position" => 1 },
-                              { "column_name" => "username", "type" => "character varying(50)",
+                              { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1 },
+                              { "column_name" => "\"username\"", "type" => "character varying(50)",
                                 "column_position" => 2 },
-                              { "column_name" => "seller_id", "type" => "integer",
-                                "column_position" => 3 },
-                              { "column_name" => "password", "type" => "character varying(50)",
+                              { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3 },
+                              { "column_name" => "\"password\"", "type" => "character varying(50)",
                                 "column_position" => 4 },
-                              { "column_name" => "email", "type" => "character varying(255)",
+                              { "column_name" => "\"email\"", "type" => "character varying(255)",
                                 "column_position" => 5 },
-                              { "column_name" => "created_on", "type" => "timestamp without time zone",
+                              { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone",
                                 "column_position" => 6 },
-                              { "column_name" => "last_login", "type" => "timestamp without time zone",
+                              { "column_name" => "\"last_login\"", "type" => "timestamp without time zone",
                                 "column_position" => 7 },
-                              { "column_name" => "purchased", "type" => "boolean",
-                                "column_position" => 8 },
+                              { "column_name" => "\"purchased\"", "type" => "boolean", "column_position" => 8 },
                             ])
       expect(described_class.dropped_columns).to eq([])
       expect(described_class.renamed_columns).to eq([])
@@ -494,18 +488,17 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         RSpec::Mocks.space.reset_all
 
         columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.shadow_table)
+
         expect(columns).to eq([
-                                { "column_name" => "user_id", "type" => "integer",
-                                  "column_position" => 1 },
-                                { "column_name" => "username", "type" => "character varying(50)",
+                                { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1 },
+                                { "column_name" => "\"username\"", "type" => "character varying(50)",
                                   "column_position" => 2 },
-                                { "column_name" => "seller_id", "type" => "integer",
-                                  "column_position" => 3 },
-                                { "column_name" => "password", "type" => "character varying(50)",
+                                { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3 },
+                                { "column_name" => "\"password\"", "type" => "character varying(50)",
                                   "column_position" => 4 },
-                                { "column_name" => "created_on", "type" => "timestamp without time zone",
+                                { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone",
                                   "column_position" => 6 },
-                                { "column_name" => "last_login", "type" => "timestamp without time zone",
+                                { "column_name" => "\"last_login\"", "type" => "timestamp without time zone",
                                   "column_position" => 7 },
                               ])
         expect(described_class.dropped_columns).to eq(["email"])
@@ -540,22 +533,22 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         RSpec::Mocks.space.reset_all
 
         columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.shadow_table)
+
         expect(columns).to eq([
-                                { "column_name" => "user_id", "type" => "integer",
-                                  "column_position" => 1 },
-                                { "column_name" => "username", "type" => "character varying(50)",
+                                { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1 },
+                                { "column_name" => "\"username\"", "type" => "character varying(50)",
                                   "column_position" => 2 },
-                                { "column_name" => "seller_id", "type" => "integer",
-                                  "column_position" => 3 },
-                                { "column_name" => "password", "type" => "character varying(50)",
+                                { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3 },
+                                { "column_name" => "\"password\"", "type" => "character varying(50)",
                                   "column_position" => 4 },
-                                { "column_name" => "new_email", "type" => "character varying(255)",
+                                { "column_name" => "\"new_email\"", "type" => "character varying(255)",
                                   "column_position" => 5 },
-                                { "column_name" => "created_on", "type" => "timestamp without time zone",
+                                { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone",
                                   "column_position" => 6 },
-                                { "column_name" => "last_login", "type" => "timestamp without time zone",
+                                { "column_name" => "\"last_login\"", "type" => "timestamp without time zone",
                                   "column_position" => 7 },
                               ])
+
         expect(described_class.dropped_columns).to eq([])
         expect(described_class.renamed_columns).to eq([
                                                         {
@@ -601,8 +594,11 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
         # Add an entry for the trigger
         query = <<~SQL
-          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
-          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+          VALUES(10, 1, 'jamesbond10 "''i am bond 🚀''"', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+
+          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+          VALUES(11, 1, 'jamesbond11 "''i am bond 🚀''"', '0011', 'james11@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -627,7 +623,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         expect(shadow_rows.first["seller_id"]).to eq("1")
         expect(shadow_rows.first["password"]).to eq("0010")
         expect(shadow_rows.first["email"]).to eq("james10@bond.com")
-        expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+        expect(shadow_rows.first["username"]).to eq("jamesbond10 \"'i am bond 🚀'\"")
+        expect(shadow_rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
         expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
 
         # Expect row being removed from audit table
@@ -685,7 +682,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         expect(shadow_rows.first["seller_id"]).to eq("1")
         expect(shadow_rows.first["password"]).to eq("007")
         expect(shadow_rows.first["email"]).to eq("james1@bond.com")
-        expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+        expect(shadow_rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
         expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
 
         # Expect row being removed from audit table
@@ -800,8 +797,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
         # Add an entry for the trigger
         query = <<~SQL
-          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
-          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -826,7 +823,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         expect(shadow_rows.first["seller_id"]).to eq("1")
         expect(shadow_rows.first["password"]).to eq("0010")
         expect(shadow_rows.first["email"]).to eq(nil)
-        expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+        expect(shadow_rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
         expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
 
         # Expect row being removed from audit table
@@ -886,7 +883,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         expect(shadow_rows.first["seller_id"]).to eq("1")
         expect(shadow_rows.first["password"]).to eq("007")
         expect(shadow_rows.first["email"]).to eq(nil)
-        expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+        expect(shadow_rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
         expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
 
         # Expect row being removed from audit table
@@ -945,8 +942,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
         # Add an entry for the trigger
         query = <<~SQL
-          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "created_on", "last_login")
-          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "created_on", "last_login";
+          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -972,7 +969,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         expect(shadow_rows.first["password"]).to eq("0010")
         expect(shadow_rows.first["email"]).to eq(nil)
         expect(shadow_rows.first["new_email"]).to eq("james10@bond.com")
-        expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+        expect(shadow_rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
         expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
 
         # Expect row being removed from audit table
@@ -1035,7 +1032,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         expect(shadow_rows.first["password"]).to eq("007")
         expect(shadow_rows.first["email"]).to eq(nil)
         expect(shadow_rows.first["new_email"]).to eq("james1@bond.com")
-        expect(shadow_rows.all? { |r| !r["created_on"].nil? }).to eq(true)
+        expect(shadow_rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
         expect(shadow_rows.all? { |r| !r["last_login"].nil? }).to eq(true)
 
         # Expect row being removed from audit table
