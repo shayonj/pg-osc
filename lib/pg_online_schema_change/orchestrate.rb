@@ -189,8 +189,7 @@ module PgOnlineSchemaChange
             SELECT * FROM #{audit_table} ORDER BY #{primary_key} LIMIT #{PULL_BATCH_COUNT};
           SQL
 
-          rows = []
-          Query.run(client.connection, select_query) { |result| rows = result.map { |row| row } }
+          rows = select_rows_to_replay
 
           raise CountBelowDelta if rows.count <= DELTA_COUNT
 
@@ -202,7 +201,18 @@ module PgOnlineSchemaChange
         swap!
       end
 
-      def replay_data!(rows)
+      def select_rows_to_replay(reuse_trasaction = false)
+        select_query = <<~SQL
+          SELECT * FROM #{audit_table} ORDER BY #{primary_key} LIMIT #{PULL_BATCH_COUNT};
+        SQL
+
+        rows = []
+        Query.run(client.connection, select_query, reuse_trasaction) { |result| rows = result.map { |row| row } }
+
+        rows
+      end
+
+      def replay_data!(rows, reuse_trasaction = false)
         PgOnlineSchemaChange.logger.info("Replaying rows, count: #{rows.size}")
 
         to_be_deleted_rows = []
@@ -275,14 +285,14 @@ module PgOnlineSchemaChange
           end
         end
 
-        Query.run(client.connection, to_be_replayed.join)
+        Query.run(client.connection, to_be_replayed.join, reuse_trasaction)
 
         # Delete items from the audit now that are replayed
         if to_be_deleted_rows.count >= 1
           delete_query = <<~SQL
             DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
           SQL
-          Query.run(client.connection, delete_query)
+          Query.run(client.connection, delete_query, reuse_trasaction)
         end
       end
 
@@ -299,6 +309,9 @@ module PgOnlineSchemaChange
         opened = Query.open_lock_exclusive(client, client.table)
 
         raise AccessExclusiveLockNotAcquired unless opened
+
+        rows = select_rows_to_replay(opened)
+        replay_data!(rows, opened)
 
         sql = <<~SQL
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
