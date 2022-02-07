@@ -38,12 +38,13 @@ module PgOnlineSchemaChange
         PgQuery.parse(query).tables[0] || from_rename_statement
       end
 
-      def run(connection, query, &block)
+      def run(connection, query, reuse_trasaction = false, &block)
         connection.cancel if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
 
         PgOnlineSchemaChange.logger.debug("Running query", { query: query })
 
         connection.async_exec("BEGIN;")
+
         result = connection.async_exec(query, &block)
       rescue Exception
         connection.cancel if connection.transaction_status != PG::PQTRANS_IDLE
@@ -53,7 +54,7 @@ module PgOnlineSchemaChange
         connection.async_exec("COMMIT;")
         raise
       else
-        connection.async_exec("COMMIT;")
+        connection.async_exec("COMMIT;") unless reuse_trasaction
         result
       end
 
@@ -227,22 +228,25 @@ module PgOnlineSchemaChange
       def open_lock_exclusive(client, table)
         attempts ||= 1
 
-        client.connection.async_exec("SET lock_timeout = '#{client.wait_time_for_lock}s'; BEGIN;")
-        client.connection.async_exec("LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;")
+        query = <<~SQL
+          SET lock_timeout = '#{client.wait_time_for_lock}s';
+          LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
+        SQL
+        run(client.connection, query, true)
 
         true
       rescue PG::LockNotAvailable, PG::InFailedSqlTransaction
         if (attempts += 1) < LOCK_ATTEMPT
           PgOnlineSchemaChange.logger.info("Couldn't acquire lock, attempt: #{attempts}")
 
-          client.connection.async_exec("COMMIT; RESET lock_timeout;")
+          run(client.connection, "RESET lock_timeout;")
           kill_backends(client, table)
 
           retry
         end
 
         PgOnlineSchemaChange.logger.info("Lock acquire failed")
-        client.connection.async_exec("COMMIT; RESET lock_timeout;")
+        run(client.connection, "RESET lock_timeout;")
 
         false
       end
@@ -256,7 +260,7 @@ module PgOnlineSchemaChange
           SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'relation' AND relation = \'#{table}\'::regclass::oid AND pid <> pg_backend_pid()
         SQL
 
-        client.connection.async_exec(query)
+        run(client.connection, query, true)
       end
     end
   end
