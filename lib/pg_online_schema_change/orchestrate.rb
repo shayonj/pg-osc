@@ -30,6 +30,7 @@ module PgOnlineSchemaChange
 
       def run!(options)
         setup!(options)
+        Thread.new { handle_signals! }
 
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
@@ -52,6 +53,31 @@ module PgOnlineSchemaChange
         raise e
       end
 
+      def setup_signals!
+        reader, writer = IO.pipe
+
+        %w[TERM QUIT INT].each do |sig|
+          trap(sig) { writer.puts sig }
+        end
+
+        reader
+      end
+
+      def handle_signals!
+        reader = setup_signals!
+        signal = reader.gets.chomp
+
+        while !reader.closed? && IO.select([reader])
+          PgOnlineSchemaChange.logger.info "Signal #{signal} received, cleaning up"
+
+          client.connection.cancel
+          drop_and_cleanup!
+          reader.close
+
+          exit Signal.list[signal]
+        end
+      end
+
       def setup_audit_table!
         @audit_table = "pgosc_audit_table_for_#{client.table}"
         PgOnlineSchemaChange.logger.info("Setting up audit table", { audit_table: @audit_table })
@@ -67,6 +93,8 @@ module PgOnlineSchemaChange
         PgOnlineSchemaChange.logger.info("Setting up triggers")
 
         sql = <<~SQL
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
+
           CREATE OR REPLACE FUNCTION primary_to_audit_table_trigger()
           RETURNS TRIGGER AS
           $$

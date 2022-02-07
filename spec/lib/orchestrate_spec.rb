@@ -111,6 +111,8 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "creates the function and sets up trigger" do
       result = <<~SQL
+        DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
+
         CREATE OR REPLACE FUNCTION primary_to_audit_table_trigger()
         RETURNS TRIGGER AS
         $$
