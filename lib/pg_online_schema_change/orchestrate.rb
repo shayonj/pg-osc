@@ -90,6 +90,13 @@ module PgOnlineSchemaChange
       end
 
       def setup_trigger!
+        # acquire access exclusive lock to ensure audit triggers
+        # are setup fine. This also calls kill_backends (if opted in via flag)
+        # so any competing backends will be killed to setup the trigger
+        opened = Query.open_lock_exclusive(client, client.table)
+
+        raise AccessExclusiveLockNotAcquired unless opened
+
         PgOnlineSchemaChange.logger.info("Setting up triggers")
 
         sql = <<~SQL
@@ -117,7 +124,9 @@ module PgOnlineSchemaChange
           FOR EACH ROW EXECUTE PROCEDURE primary_to_audit_table_trigger();
         SQL
 
-        Query.run(client.connection, sql)
+        Query.run(client.connection, sql, opened)
+      ensure
+        Query.run(client.connection, "COMMIT;")
       end
 
       def setup_shadow_table!
