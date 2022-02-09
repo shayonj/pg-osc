@@ -314,7 +314,6 @@ module PgOnlineSchemaChange
 
         # From here on, all statements are carried out in a single
         # transaction with access exclusive lock
-
         opened = Query.open_lock_exclusive(client, client.table)
 
         raise AccessExclusiveLockNotAcquired unless opened

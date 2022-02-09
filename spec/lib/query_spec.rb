@@ -354,6 +354,19 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
   end
 
+  describe ".get_all_indexes_for" do
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    it "returns all indexes" do
+      result = described_class.get_all_indexes_for(client)
+      expect(result.count).to eq(110)
+    end
+  end
+
   describe ".get_indexes_for" do
     let(:client) do
       client = PgOnlineSchemaChange::Client.new(client_options)
@@ -362,22 +375,25 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
 
     it "returns index statements for the given table on client" do
-      query = <<~SQL
-        SELECT indexdef, schemaname
-        FROM pg_indexes
-        WHERE schemaname = \'#{client.schema}\' AND tablename = 'books'
-      SQL
-
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:async_exec).with(query).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
-
       result = described_class.get_indexes_for(client, "books")
       expect(result).to eq([
                              "CREATE UNIQUE INDEX books_pkey ON #{client.schema}.books USING btree (user_id)",
                              "CREATE UNIQUE INDEX books_username_key ON #{client.schema}.books USING btree (username)",
                              "CREATE UNIQUE INDEX books_email_key ON #{client.schema}.books USING btree (email)",
                            ])
+    end
+  end
+
+  describe ".get_index_names_for" do
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    it "returns index names for given table" do
+      result = described_class.get_index_names_for(client, client.table)
+      expect(result).to eq(["books_pkey", "books_username_key", "books_email_key"])
     end
   end
 

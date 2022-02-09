@@ -88,19 +88,33 @@ module PgOnlineSchemaChange
         parsed_query.deparse
       end
 
-      def get_indexes_for(client, table)
+      def get_all_indexes_for(client)
         query = <<~SQL
-          SELECT indexdef, schemaname
+          SELECT indexdef as index_definition, indexname as index_name, tablename as table
           FROM pg_indexes
-          WHERE schemaname = \'#{client.schema}\' AND tablename = \'#{table}\'
         SQL
 
         indexes = []
         run(client.connection, query) do |result|
-          indexes = result.map { |row| row["indexdef"] }
+          indexes = result.map { |row| row }
         end
 
         indexes
+      end
+
+      def get_indexes_for(client, table)
+        get_all_indexes_for(client).map do |row|
+          next unless row["table"] == table
+          row["index_definition"]
+        end.compact
+      end
+
+      def get_index_names_for(client, table)
+        get_all_indexes_for(client).map do |row|
+          next unless row["table"] == table
+
+          row["index_name"]
+        end.compact
       end
 
       def get_all_constraints_for(client)
@@ -161,6 +175,27 @@ module PgOnlineSchemaChange
         references.map do |row|
           "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
         end.join
+      end
+
+      def constraint_names_to_restore(client, shadow_table)
+        key = "#{shadow_table}_"
+        statements = []
+
+        get_foreign_keys_for(client, shadow_table).map do |row|
+          name = row["constraint_name"].include?(key) ? row["constraint_name"].split(key).last : nil
+          next if name.nil?
+
+          statements << "ALTER TABLE #{client.table} RENAME CONSTRAINT #{row["constraint_name"]} TO #{name};"
+        end
+
+        get_index_names_for(client, shadow_table).map do |index_name|
+          name = index_name.include?(key) ? index_name.split(key).last : nil
+          next if name.nil?
+
+          statements << "ALTER INDEX #{index_name} TO #{name};"
+        end
+
+        statements.join
       end
 
       def dropped_columns(client)
