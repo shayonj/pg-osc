@@ -135,12 +135,22 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         FOR EACH ROW EXECUTE PROCEDURE primary_to_audit_table_trigger();
       SQL
 
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(3).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("SET lock_timeout = '5s';\nLOCK TABLE books IN ACCESS EXCLUSIVE MODE;\n").and_call_original
       expect(client.connection).to receive(:async_exec).with(result).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
 
       described_class.setup_trigger!
       expect(described_class.audit_table).to eq("pgosc_audit_table_for_books")
+    end
+
+    it "closes transaction when it couldn't acquire lock" do
+      expect(PgOnlineSchemaChange::Query).to receive(:run).with(client.connection, "COMMIT;").once.and_call_original
+      expect(PgOnlineSchemaChange::Query).to receive(:open_lock_exclusive).and_raise(PgOnlineSchemaChange::AccessExclusiveLockNotAcquired)
+
+      expect do
+        described_class.setup_trigger!
+      end.to raise_error(PgOnlineSchemaChange::AccessExclusiveLockNotAcquired)
     end
 
     it "verifies function and trigger are setup" do
