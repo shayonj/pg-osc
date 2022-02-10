@@ -8,6 +8,8 @@ require "pg_online_schema_change/functions"
 require "pg_online_schema_change/cli"
 require "pg_online_schema_change/client"
 require "pg_online_schema_change/query"
+require "pg_online_schema_change/store"
+require "pg_online_schema_change/replay"
 require "pg_online_schema_change/orchestrate"
 
 module PgOnlineSchemaChange
