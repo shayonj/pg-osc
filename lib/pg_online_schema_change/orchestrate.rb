@@ -1,5 +1,7 @@
 module PgOnlineSchemaChange
   class Orchestrate
+    extend Helper
+
     class << self
       def setup!(options)
         client = Store.set(:client, Client.new(options))
@@ -192,7 +194,7 @@ module PgOnlineSchemaChange
         old_primary_table = Store.set(:old_primary_table, "pgosc_old_primary_table_#{client.table}")
 
         foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
-        storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});" # TODO: test for this being empty
+        storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});"
 
         # From here on, all statements are carried out in a single
         # transaction with access exclusive lock
@@ -246,20 +248,6 @@ module PgOnlineSchemaChange
         SQL
 
         Query.run(client.connection, sql)
-      end
-
-      def primary_key
-        result = Store.get(:primary_key)
-        return result if result
-
-        Store.set(:primary_key, Query.primary_key_for(client, client.table))
-      end
-
-      def method_missing(method, *_args)
-        result = Store.send(:get, method)
-        return result if result
-
-        raise ArgumentError, "Method `#{method}` doesn't exist."
       end
     end
   end

@@ -1,5 +1,7 @@
 module PgOnlineSchemaChange
   class Replay
+    extend Helper
+
     class << self
       PULL_BATCH_COUNT = 1000
       DELTA_COUNT = 20

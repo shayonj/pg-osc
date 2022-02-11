@@ -4,6 +4,7 @@ require "json"
 require "ougai"
 
 require "pg_online_schema_change/version"
+require "pg_online_schema_change/helper"
 require "pg_online_schema_change/functions"
 require "pg_online_schema_change/cli"
 require "pg_online_schema_change/client"
