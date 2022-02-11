@@ -117,13 +117,6 @@ module PgOnlineSchemaChange
           Query.run(client.connection, delete_query, reuse_trasaction)
         end
       end
-
-      def method_missing(method, *_args)
-        result = Store.send(:get, method)
-        return result if result
-
-        raise ArgumentError, "Method `#{method}` doesn't exist."
-      end
     end
   end
 end
