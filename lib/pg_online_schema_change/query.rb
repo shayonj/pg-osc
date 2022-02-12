@@ -3,6 +3,8 @@ require "pg"
 
 module PgOnlineSchemaChange
   class Query
+    extend Helper
+
     INDEX_SUFFIX = "_pgosc".freeze
     DROPPED_COLUMN_TYPE = :AT_DropColumn
     RENAMED_COLUMN_TYPE = :AT_RenameColumn
@@ -68,6 +70,7 @@ module PgOnlineSchemaChange
 
         run(client.connection, sql) do |result|
           mapped_columns = result.map do |row|
+            row["column_name_regular"] = row["column_name"]
             row["column_name"] = client.connection.quote_ident(row["column_name"])
             row["column_position"] = row["column_position"].to_i
             row
@@ -261,6 +264,38 @@ module PgOnlineSchemaChange
         SQL
 
         run(client.connection, query, true)
+      end
+
+      def copy_data_statement(client, shadow_table)
+        select_columns = table_columns(client).map do |entry|
+          entry["column_name_regular"]
+        end
+
+        select_columns -= dropped_columns_list if dropped_columns_list.any?
+
+        insert_into_columns = select_columns.dup
+
+        if renamed_columns_list.any?
+          renamed_columns_list.each do |obj|
+            insert_into_columns.each_with_index do |insert_into_column, index|
+              insert_into_columns[index] = obj[:new_name] if insert_into_column == obj[:old_name]
+            end
+          end
+        end
+
+        insert_into_columns.map! do |insert_into_column|
+          client.connection.quote_ident(insert_into_column)
+        end
+
+        select_columns.map! do |select_column|
+          client.connection.quote_ident(select_column)
+        end
+
+        sql = <<~SQL
+          INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")})
+          SELECT #{select_columns.join(", ")}
+          FROM ONLY #{client.table}
+        SQL
       end
     end
   end

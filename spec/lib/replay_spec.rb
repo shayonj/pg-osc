@@ -14,15 +14,15 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         PgOnlineSchemaChange::Orchestrate.setup_trigger!
         PgOnlineSchemaChange::Orchestrate.setup_shadow_table!
         PgOnlineSchemaChange::Orchestrate.disable_vacuum!
-        PgOnlineSchemaChange::Orchestrate.copy_data!
         PgOnlineSchemaChange::Orchestrate.run_alter_statement!
+        PgOnlineSchemaChange::Orchestrate.copy_data!
       end
 
       it "replays INSERT data and cleanups the rows in audit table after" do
         user_id = 10
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect new row not present in into shadow table
@@ -43,7 +43,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -69,7 +69,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -81,7 +81,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         user_id = 2
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect existing row being present in into shadow table
@@ -101,7 +101,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -127,7 +127,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -139,7 +139,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         user_id = 2
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect existing row being present in into shadow table
@@ -157,7 +157,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being added to the audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -166,7 +166,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -185,7 +185,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -215,17 +215,17 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         PgOnlineSchemaChange::Orchestrate.setup_trigger!
         PgOnlineSchemaChange::Orchestrate.setup_shadow_table!
         PgOnlineSchemaChange::Orchestrate.disable_vacuum!
-        PgOnlineSchemaChange::Orchestrate.copy_data!
         PgOnlineSchemaChange::Orchestrate.run_alter_statement!
+        PgOnlineSchemaChange::Orchestrate.copy_data!
       end
 
       it "replays INSERT data" do
-        expect(PgOnlineSchemaChange::Orchestrate.dropped_columns).to eq(["email"])
+        expect(described_class.dropped_columns_list).to eq(["email"])
 
         user_id = 10
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect new row not present in into shadow table
@@ -243,7 +243,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -268,7 +268,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -277,12 +277,12 @@ RSpec.describe PgOnlineSchemaChange::Replay do
       end
 
       it "replays UPDATE data" do
-        expect(PgOnlineSchemaChange::Orchestrate.dropped_columns).to eq(["email"])
+        expect(described_class.dropped_columns_list).to eq(["email"])
 
         user_id = 2
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect existing row being present in into shadow table
@@ -302,7 +302,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -328,7 +328,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -358,19 +358,19 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         PgOnlineSchemaChange::Orchestrate.setup_trigger!
         PgOnlineSchemaChange::Orchestrate.setup_shadow_table!
         PgOnlineSchemaChange::Orchestrate.disable_vacuum!
-        PgOnlineSchemaChange::Orchestrate.copy_data!
         PgOnlineSchemaChange::Orchestrate.run_alter_statement!
+        PgOnlineSchemaChange::Orchestrate.copy_data!
       end
 
       it "replays INSERT data" do
-        expect(PgOnlineSchemaChange::Orchestrate.dropped_columns).to eq([])
-        expect(PgOnlineSchemaChange::Orchestrate.renamed_columns).to eq([{ old_name: "email",
-                                                                           new_name: "new_email" }])
+        expect(described_class.dropped_columns_list).to eq([])
+        expect(described_class.renamed_columns_list).to eq([{ old_name: "email",
+                                                              new_name: "new_email" }])
 
         user_id = 10
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect new row not present in into shadow table
@@ -388,7 +388,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -414,7 +414,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }
@@ -423,14 +423,14 @@ RSpec.describe PgOnlineSchemaChange::Replay do
       end
 
       it "replays UPDATE data" do
-        expect(PgOnlineSchemaChange::Orchestrate.dropped_columns).to eq([])
-        expect(PgOnlineSchemaChange::Orchestrate.renamed_columns).to eq([{ old_name: "email",
-                                                                           new_name: "new_email" }])
+        expect(described_class.dropped_columns_list).to eq([])
+        expect(described_class.renamed_columns_list).to eq([{ old_name: "email",
+                                                              new_name: "new_email" }])
 
         user_id = 2
         rows = []
         shadow_table_query = <<~SQL
-          SELECT * from #{described_class.shadow_table} WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
 
         # Expect existing row being present in into shadow table
@@ -450,7 +450,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         # Fetch rows
         select_query = <<~SQL
-          SELECT * FROM #{described_class.audit_table} ORDER BY #{PgOnlineSchemaChange::Orchestrate.primary_key} LIMIT 1000;
+          SELECT * FROM #{described_class.audit_table} ORDER BY #{described_class.primary_key} LIMIT 1000;
         SQL
         rows = []
         PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -477,7 +477,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Expect row being removed from audit table
         audit_rows = []
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{PgOnlineSchemaChange::Orchestrate.primary_key}=#{user_id};
+          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, audit_table_query) do |result|
           audit_rows = result.map { |row| row }

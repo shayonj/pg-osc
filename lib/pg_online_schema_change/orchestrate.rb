@@ -28,8 +28,8 @@ module PgOnlineSchemaChange
         setup_trigger!
         setup_shadow_table!
         disable_vacuum!
-        copy_data!
         run_alter_statement!
+        copy_data!
         run_analyze!
         replay_and_swap!
         run_analyze!
@@ -149,35 +149,25 @@ module PgOnlineSchemaChange
         Query.run(client.connection, sql)
       end
 
-      # Begin the process to copy data into copy table
-      # depending on the size of the table, this can be a time
-      # taking operation.
-      def copy_data!
-        PgOnlineSchemaChange.logger.info("Copying contents onto on shadow table from parent table...",
-                                         { shadow_table: shadow_table, parent_table: client.table })
-
-        result = Query.table_columns(client).map do |entry|
-          entry["column_name"]
-        end
-        parent_table_columns = Store.set(:parent_table_columns, result)
-
-        columns = parent_table_columns.join(", ")
-        sql = <<~SQL
-          INSERT INTO #{shadow_table}
-          SELECT #{columns}
-          FROM ONLY #{client.table}
-        SQL
-        Query.run(client.connection, sql)
-      end
-
       def run_alter_statement!
         statement = Query.alter_statement_for(client, shadow_table)
         PgOnlineSchemaChange.logger.info("Running alter statement on shadow table",
                                          { shadow_table: shadow_table, parent_table: client.table })
         Query.run(client.connection, statement)
 
-        Store.set(:dropped_columns, Query.dropped_columns(client))
-        Store.set(:renamed_columns, Query.renamed_columns(client))
+        Store.set(:dropped_columns_list, Query.dropped_columns(client))
+        Store.set(:renamed_columns_list, Query.renamed_columns(client))
+      end
+
+      # Begin the process to copy data into copy table
+      # depending on the size of the table, this can be a time
+      # taking operation.
+      def copy_data!
+        PgOnlineSchemaChange.logger.info("Copying contents..",
+                                         { shadow_table: shadow_table, parent_table: client.table })
+
+        sql = Query.copy_data_statement(client, shadow_table)
+        Query.run(client.connection, sql)
       end
 
       def replay_and_swap!

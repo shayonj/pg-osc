@@ -175,13 +175,20 @@ RSpec.describe PgOnlineSchemaChange::Query do
       described_class.run(client.connection, new_dummy_table_sql)
 
       result = [
-        { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1 },
-        { "column_name" => "\"username\"", "type" => "character varying(50)", "column_position" => 2 },
-        { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3 },
-        { "column_name" => "\"password\"", "type" => "character varying(50)", "column_position" => 4 },
-        { "column_name" => "\"email\"", "type" => "character varying(255)", "column_position" => 5 },
-        { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone", "column_position" => 6 },
-        { "column_name" => "\"last_login\"", "type" => "timestamp without time zone", "column_position" => 7 },
+        { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1,
+          "column_name_regular" => "user_id" },
+        { "column_name" => "\"username\"", "type" => "character varying(50)", "column_position" => 2,
+          "column_name_regular" => "username" },
+        { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3,
+          "column_name_regular" => "seller_id" },
+        { "column_name" => "\"password\"", "type" => "character varying(50)", "column_position" => 4,
+          "column_name_regular" => "password" },
+        { "column_name" => "\"email\"", "type" => "character varying(255)", "column_position" => 5,
+          "column_name_regular" => "email" },
+        { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone", "column_position" => 6,
+          "column_name_regular" => "createdOn" },
+        { "column_name" => "\"last_login\"", "type" => "timestamp without time zone", "column_position" => 7,
+          "column_name_regular" => "last_login" },
       ]
 
       expect(described_class.table_columns(client)).to eq(result)
@@ -503,6 +510,82 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
       result = described_class.storage_parameters_for(client, "sellers")
       expect(result).to eq(nil)
+    end
+  end
+
+  describe ".copy_data_statement" do
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+
+      PgOnlineSchemaChange::Store.set(:dropped_columns_list, described_class.dropped_columns(client))
+      PgOnlineSchemaChange::Store.set(:renamed_columns_list, described_class.renamed_columns(client))
+
+      client
+    end
+
+    before do
+      setup_tables(client)
+    end
+
+    it "returns the copy statement from shadow table" do
+      statement = described_class.copy_data_statement(client, "pgosc_shadow_table_for_books")
+      result = <<~SQL
+        INSERT INTO pgosc_shadow_table_for_books("user_id", "username", "seller_id", "password", "email", "createdOn", "last_login")
+        SELECT "user_id", "username", "seller_id", "password", "email", "createdOn", "last_login"
+        FROM ONLY books
+      SQL
+      expect(statement).to eq(result)
+    end
+
+    describe "on dropped column" do
+      let(:client) do
+        options = client_options.to_h.merge(
+          alter_statement: "ALTER TABLE books DROP COLUMN \"user_id\";",
+        )
+        client_options = Struct.new(*options.keys).new(*options.values)
+        client = PgOnlineSchemaChange::Client.new(client_options)
+
+        PgOnlineSchemaChange::Store.set(:dropped_columns_list, described_class.dropped_columns(client))
+        PgOnlineSchemaChange::Store.set(:renamed_columns_list, described_class.renamed_columns(client))
+
+        client
+      end
+
+      it "returns the copy statement from shadow table" do
+        statement = described_class.copy_data_statement(client, "pgosc_shadow_table_for_books")
+        result = <<~SQL
+          INSERT INTO pgosc_shadow_table_for_books("username", "seller_id", "password", "email", "createdOn", "last_login")
+          SELECT "username", "seller_id", "password", "email", "createdOn", "last_login"
+          FROM ONLY books
+        SQL
+        expect(statement).to eq(result)
+      end
+    end
+
+    describe "on renamed column" do
+      let(:client) do
+        options = client_options.to_h.merge(
+          alter_statement: "ALTER TABLE books RENAME COLUMN \"user_id\" to \"new_user_id\"; ",
+        )
+        client_options = Struct.new(*options.keys).new(*options.values)
+        client = PgOnlineSchemaChange::Client.new(client_options)
+
+        PgOnlineSchemaChange::Store.set(:dropped_columns_list, described_class.dropped_columns(client))
+        PgOnlineSchemaChange::Store.set(:renamed_columns_list, described_class.renamed_columns(client))
+
+        client
+      end
+
+      it "returns the copy statement from shadow table" do
+        statement = described_class.copy_data_statement(client, "pgosc_shadow_table_for_books")
+        result = <<~SQL
+          INSERT INTO pgosc_shadow_table_for_books("new_user_id", "username", "seller_id", "password", "email", "createdOn", "last_login")
+          SELECT "user_id", "username", "seller_id", "password", "email", "createdOn", "last_login"
+          FROM ONLY books
+        SQL
+        expect(statement).to eq(result)
+      end
     end
   end
 
