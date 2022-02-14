@@ -66,6 +66,9 @@ print the version
 - **Shadow table**: A copy of an existing primary table
 - **Audit table**: A table to store any updates/inserts/delete on a primary table
 
+![how-it-works](diagrams/how-it-works.png)
+
+
 1. Create an audit table to record changes made to the parent table.
 2. Acquire a brief `ACCESS EXCLUSIVE` lock to add a trigger on the parent table (for inserts, updates, deletes) to the audit table.
 3. Create a new shadow table and run ALTER/migration on the shadow table. 
