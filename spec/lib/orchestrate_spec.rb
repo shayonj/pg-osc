@@ -734,6 +734,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "closes transaction when it couldn't acquire lock" do
       expect(PgOnlineSchemaChange::Query).to receive(:get_foreign_keys_to_refresh).with(client, client.table)
+      expect(PgOnlineSchemaChange::Query).to receive(:run).with(
+        client.connection,
+        "SET statement_timeout = 0;",
+      ).once.and_call_original
       expect(PgOnlineSchemaChange::Query).to receive(:run).with(client.connection, "COMMIT;").once.and_call_original
       expect(PgOnlineSchemaChange::Query).to receive(:open_lock_exclusive).and_raise(PgOnlineSchemaChange::AccessExclusiveLockNotAcquired)
 
