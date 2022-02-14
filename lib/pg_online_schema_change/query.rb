@@ -43,7 +43,7 @@ module PgOnlineSchemaChange
       def run(connection, query, reuse_trasaction = false, &block)
         connection.cancel if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
 
-        PgOnlineSchemaChange.logger.debug("Running query", { query: query })
+        logger.debug("Running query", { query: query })
 
         connection.async_exec("BEGIN;")
 
@@ -51,7 +51,7 @@ module PgOnlineSchemaChange
       rescue Exception
         connection.cancel if connection.transaction_status != PG::PQTRANS_IDLE
         connection.block
-        PgOnlineSchemaChange.logger.info("Exception raised, rolling back query", { rollback: true, query: query })
+        logger.info("Exception raised, rolling back query", { rollback: true, query: query })
         connection.async_exec("ROLLBACK;")
         connection.async_exec("COMMIT;")
         raise
@@ -240,7 +240,7 @@ module PgOnlineSchemaChange
         true
       rescue PG::LockNotAvailable, PG::InFailedSqlTransaction
         if (attempts += 1) < LOCK_ATTEMPT
-          PgOnlineSchemaChange.logger.info("Couldn't acquire lock, attempt: #{attempts}")
+          logger.info("Couldn't acquire lock, attempt: #{attempts}")
 
           run(client.connection, "RESET lock_timeout;")
           kill_backends(client, table)
@@ -248,7 +248,7 @@ module PgOnlineSchemaChange
           retry
         end
 
-        PgOnlineSchemaChange.logger.info("Lock acquire failed")
+        logger.info("Lock acquire failed")
         run(client.connection, "RESET lock_timeout;")
 
         false
@@ -257,7 +257,7 @@ module PgOnlineSchemaChange
       def kill_backends(client, table)
         return unless client.kill_backends
 
-        PgOnlineSchemaChange.logger.info("Terminating other backends")
+        logger.info("Terminating other backends")
 
         query = <<~SQL
           SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'relation' AND relation = \'#{table}\'::regclass::oid AND pid <> pg_backend_pid()

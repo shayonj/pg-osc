@@ -36,7 +36,7 @@ module PgOnlineSchemaChange
         validate_constraints!
         drop_and_cleanup!
       rescue StandardError => e
-        PgOnlineSchemaChange.logger.fatal("Something went wrong: #{e.message}", { e: e })
+        logger.fatal("Something went wrong: #{e.message}", { e: e })
 
         drop_and_cleanup!
 
@@ -58,7 +58,7 @@ module PgOnlineSchemaChange
         signal = reader.gets.chomp
 
         while !reader.closed? && IO.select([reader])
-          PgOnlineSchemaChange.logger.info "Signal #{signal} received, cleaning up"
+          logger.info "Signal #{signal} received, cleaning up"
 
           client.connection.cancel
           drop_and_cleanup!
@@ -70,7 +70,7 @@ module PgOnlineSchemaChange
 
       def setup_audit_table!
         audit_table = Store.set(:audit_table, "pgosc_audit_table_for_#{client.table}")
-        PgOnlineSchemaChange.logger.info("Setting up audit table", { audit_table: audit_table })
+        logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
           CREATE TABLE #{audit_table} (operation_type text, trigger_time timestamp, LIKE #{client.table});
@@ -87,7 +87,7 @@ module PgOnlineSchemaChange
 
         raise AccessExclusiveLockNotAcquired unless opened
 
-        PgOnlineSchemaChange.logger.info("Setting up triggers")
+        logger.info("Setting up triggers")
 
         sql = <<~SQL
           DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
@@ -122,7 +122,7 @@ module PgOnlineSchemaChange
       def setup_shadow_table!
         shadow_table = Store.set(:shadow_table, "pgosc_shadow_table_for_#{client.table}")
 
-        PgOnlineSchemaChange.logger.info("Setting up shadow table", { shadow_table: shadow_table })
+        logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
         Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');")
 
@@ -135,8 +135,8 @@ module PgOnlineSchemaChange
         result = Query.storage_parameters_for(client, client.table) || ""
         primary_table_storage_parameters = Store.set(:primary_table_storage_parameters, result)
 
-        PgOnlineSchemaChange.logger.debug("Disabling vacuum on shadow and audit table",
-                                          { shadow_table: shadow_table, audit_table: audit_table })
+        logger.debug("Disabling vacuum on shadow and audit table",
+                     { shadow_table: shadow_table, audit_table: audit_table })
         sql = <<~SQL
           ALTER TABLE #{shadow_table} SET (
             autovacuum_enabled = false, toast.autovacuum_enabled = false
@@ -151,8 +151,8 @@ module PgOnlineSchemaChange
 
       def run_alter_statement!
         statement = Query.alter_statement_for(client, shadow_table)
-        PgOnlineSchemaChange.logger.info("Running alter statement on shadow table",
-                                         { shadow_table: shadow_table, parent_table: client.table })
+        logger.info("Running alter statement on shadow table",
+                    { shadow_table: shadow_table, parent_table: client.table })
         Query.run(client.connection, statement)
 
         Store.set(:dropped_columns_list, Query.dropped_columns(client))
@@ -163,8 +163,12 @@ module PgOnlineSchemaChange
       # depending on the size of the table, this can be a time
       # taking operation.
       def copy_data!
-        PgOnlineSchemaChange.logger.info("Copying contents..",
-                                         { shadow_table: shadow_table, parent_table: client.table })
+        logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table })
+
+        if client.copy_statement
+          query = format(client.copy_statement, shadow_table: shadow_table)
+          return Query.run(client.connection, query)
+        end
 
         sql = Query.copy_data_statement(client, shadow_table)
         Query.run(client.connection, sql)
@@ -173,13 +177,13 @@ module PgOnlineSchemaChange
       def replay_and_swap!
         Replay.begin!
       rescue CountBelowDelta
-        PgOnlineSchemaChange.logger.info("Remaining rows below delta count, proceeding towards swap")
+        logger.info("Remaining rows below delta count, proceeding towards swap")
 
         swap!
       end
 
       def swap!
-        PgOnlineSchemaChange.logger.info("Performing swap!")
+        logger.info("Performing swap!")
 
         old_primary_table = Store.set(:old_primary_table, "pgosc_old_primary_table_#{client.table}")
 
@@ -210,13 +214,13 @@ module PgOnlineSchemaChange
       end
 
       def run_analyze!
-        PgOnlineSchemaChange.logger.info("Performing ANALYZE!")
+        logger.info("Performing ANALYZE!")
 
         Query.run(client.connection, "ANALYZE VERBOSE #{client.table};")
       end
 
       def validate_constraints!
-        PgOnlineSchemaChange.logger.info("Validating constraints!")
+        logger.info("Validating constraints!")
 
         validate_statements = Query.get_foreign_keys_to_validate(client, client.table)
 

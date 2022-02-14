@@ -15,6 +15,7 @@ module DatabaseHelpers
       drop: false,
       kill_backends: false,
       wait_time_for_lock: 5,
+      copy_statement: "",
     }
     Struct.new(*options.keys).new(*options.values)
   end

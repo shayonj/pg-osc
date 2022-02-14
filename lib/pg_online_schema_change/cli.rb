@@ -16,9 +16,11 @@ module PgOnlineSchemaChange
     method_option :drop, aliases: "-f", type: :boolean, default: false,
                          desc: "Drop the original table in the end after the swap"
     method_option :kill_backends, aliases: "-k", type: :boolean, default: false,
-                                  desc: "Kill other competing queries/backends when trying to acquire lock for the swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times."
+                                  desc: "Kill other competing queries/backends when trying to acquire lock for the shadow table creation and swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times."
     method_option :wait_time_for_lock, aliases: "-w", type: :numeric, default: 10,
                                        desc: "Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock."
+    method_option :copy_statement, aliases: "-c", type: :string, required: false,
+                                   desc: "Takes a .sql file location where you can provide a custom query to be played (ex: backfills) when pgosc copies data from the primary to the shadow table. More examples in README."
 
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)

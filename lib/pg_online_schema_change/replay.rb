@@ -35,7 +35,7 @@ module PgOnlineSchemaChange
       end
 
       def play!(rows, reuse_trasaction = false)
-        PgOnlineSchemaChange.logger.info("Replaying rows, count: #{rows.size}")
+        logger.info("Replaying rows, count: #{rows.size}")
 
         to_be_deleted_rows = []
         to_be_replayed = []
