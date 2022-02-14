@@ -160,9 +160,9 @@ pg-online-schema-change perform \
 ### Caveats
 - A primary key should exist on the table; without it, `pg-osc` will raise an exception
 	- This is because - currently there is no other way to uniquely identify rows during replay.
-- `pg-osc` will acquire `ACCESS EXCLUSIVE` lock on the parent table twice during the.
+- `pg-osc` will acquire `ACCESS EXCLUSIVE` lock on the parent table twice during the operation.
 	- First, when setting up the triggers and the shadow table.
-	- Next, when performing the swap and updating FK references
+	- Next, when performing the swap and updating FK references.
 	- Note: If `kill-backends` is passed, it will attempt to terminate any competing operations during both times. 
 - By design, `pg-osc` doesn't kill any other DDLs being performed. It's best to not run any DDLs against the parent table during the operation.
 - Due to the nature of duplicating a table, there needs to be enough space on the disk to support the operation.
@@ -182,8 +182,9 @@ rvm install 3.0.0
 
 rvm use 3.0.0
 ```
+
 - Spin up postgres via Docker Compose - `docker compose up`
-- Then, run `bundle exec spec` to run the tests. 
+- `bundle exec rspec` to run the tests. 
 - You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`. 
