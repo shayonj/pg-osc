@@ -112,7 +112,7 @@ pg-online-schema-change perform \
 ```
 
 ### Kill other backends after 5s
-If the operation is being performed on a busy table, you can use `pg-osc`'s `kill-backend` functionality to kill other backends that may be competing with the `pg-osc` operation to acquire a lock for a brief while. The `ACCESS EXCLUSIVE` lock acquired by `pg-osc` is only for a brief while and released after. You can tune how long `pg-osc` should wait before killing other backends (or if at all `pg-osc` should kill backends in the first place).
+If the operation is being performed on a busy table, you can use `pg-osc`'s `kill-backend` functionality to kill other backends that may be competing with the `pg-osc` operation to acquire a lock for a brief while. The `ACCESS EXCLUSIVE` lock acquired by `pg-osc` is only held for a brief while and released after. You can tune how long `pg-osc` should wait before killing other backends (or if at all `pg-osc` should kill backends in the first place).
 
 ```
 pg-online-schema-change perform \
@@ -130,8 +130,10 @@ When inserting data into the shadow table, instead of just copying all columns a
 
 **IMPORTANT NOTES:**
 - It is possible to violate a constraint accidentally or not copy data, **so proceed with caution**.
+  - You must use OUTER JOINs when joining in the custom SQL, or you will **lose rows** which do not match the joined table.
 - The `ALTER` statement can change the table's structure, **so proceed with caution**.
 - Preserve `%{shadow_table}` as that will be replaced with the destination of the shadow table.
+- Users are **STRONGLY URGED** to test and validate results before using in production!
 
 ```sql
 -- file: /src/query.sql
@@ -164,7 +166,7 @@ pg-online-schema-change perform \
 - Index, constraints and sequence names will be altered and lose their original naming.
 	- Can be fixed in future releases. Feel free to open a feature req.
 - Triggers are not carried over. 
-- Can be fixed in future releases. Feel free to open a feature req.
+  - Can be fixed in future releases. Feel free to open a feature req.
 - Foreign keys are dropped & re-added to referencing tables with a `NOT VALID`. A follow on `VALIDATE CONSTRAINT` is run.
  	- Ensures that integrity is maintained and re-introducing FKs doesn't acquire additional locks, hence the `NOT VALID`.
 ## Development
