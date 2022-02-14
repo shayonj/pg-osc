@@ -48,14 +48,14 @@ module PgOnlineSchemaChange
             new_row.delete(col)
           end
 
-          if dropped_columns.any?
-            dropped_columns.each do |dropped_column|
+          if dropped_columns_list.any?
+            dropped_columns_list.each do |dropped_column|
               new_row.delete(dropped_column)
             end
           end
 
-          if renamed_columns.any?
-            renamed_columns.each do |object|
+          if renamed_columns_list.any?
+            renamed_columns_list.each do |object|
               value = new_row.delete(object[:old_name])
               new_row[object[:new_name]] = value
             end
