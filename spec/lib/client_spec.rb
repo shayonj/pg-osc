@@ -13,6 +13,7 @@ RSpec.describe PgOnlineSchemaChange::Client do
     expect(client.connection).to be_instance_of(PG::Connection)
     expect(client.table).to eq("books")
     expect(client.drop).to eq(false)
+    expect(client.copy_statement).to eq(nil)
   end
 
   it "raises error query is not ALTER" do
@@ -23,5 +24,33 @@ RSpec.describe PgOnlineSchemaChange::Client do
     expect do
       described_class.new(client_options)
     end.to raise_error(PgOnlineSchemaChange::Error, "Not a valid ALTER statement: CREATE DATABASE foo")
+  end
+
+  describe "handle_copy_statement" do
+    it "reads file and sets statement" do
+      query = <<~SQL
+        INSERT INTO %{shadow_table} ("username", "seller_id", "password", "email", "createdOn", "last_login", "user_id")
+        SELECT "username", "seller_id", "password", "email", "createdOn", "last_login", "user_id"
+        FROM ONLY books
+      SQL
+
+      options = client_options.to_h.merge(
+        copy_statement: "./spec/fixtures/copy.sql",
+      )
+      client_options = Struct.new(*options.keys).new(*options.values)
+      client = described_class.new(client_options)
+
+      expect(client.copy_statement).to eq(query)
+    end
+
+    it "raises error if file is not valid" do
+      options = client_options.to_h.merge(
+        copy_statement: "foo",
+      )
+      client_options = Struct.new(*options.keys).new(*options.values)
+      expect do
+        described_class.new(client_options)
+      end.to raise_error(PgOnlineSchemaChange::Error, /File not found/)
+    end
   end
 end

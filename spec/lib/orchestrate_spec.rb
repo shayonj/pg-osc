@@ -420,6 +420,40 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(rows.all? { |r| !r["last_login"].nil? }).to eq(true)
     end
 
+    describe "from copy_statement" do
+      let(:client) do
+        options = client_options.to_h.merge(
+          copy_statement: "./spec/fixtures/copy.sql",
+        )
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      it "succesfully" do
+        described_class.copy_data!
+
+        RSpec::Mocks.space.reset_all
+
+        query = <<~SQL
+          select * from #{described_class.shadow_table};
+        SQL
+        rows = []
+        PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+          rows = result.map { |row| row }
+        end
+
+        expect(rows.count).to eq(3)
+        expect(rows.map { |r| r["user_id"] }).to eq(%w[2 3 4])
+        expect(rows.map { |r| r["seller_id"] }).to eq(%w[1 1 1])
+        expect(rows.map { |r| r["password"] }).to eq(%w[007 008 009])
+        expect(rows.map do |r|
+          r["email"]
+        end).to eq(["james1@bond.com", "james2@bond.com", "james3@bond.com"])
+        expect(rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
+        expect(rows.all? { |r| !r["last_login"].nil? }).to eq(true)
+      end
+    end
+
     describe "when column is dropped" do
       let(:client) do
         options = client_options.to_h.merge(
@@ -471,7 +505,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
         expect(rows.count).to eq(3)
         expect(rows.map { |r| r["user_id"] }.compact).to eq([])
-        expect(rows.map { |r| r["new_user_id"] }).to eq(["2", "3", "4"])
+        expect(rows.map { |r| r["new_user_id"] }).to eq(%w[2 3 4])
       end
     end
   end

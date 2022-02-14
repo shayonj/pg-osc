@@ -7,6 +7,10 @@ module PgOnlineSchemaChange
       Store.set(:primary_key, Query.primary_key_for(client, client.table))
     end
 
+    def logger
+      PgOnlineSchemaChange.logger
+    end
+
     def method_missing(method, *_args)
       result = Store.send(:get, method)
       return result if result
