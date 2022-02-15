@@ -69,14 +69,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "creates the audit table with columns from parent table and additional identifiers" do
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:async_exec).with("CREATE TABLE pgosc_audit_table_for_books (operation_type text, trigger_time timestamp, LIKE books);\n").and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
-
       described_class.setup_audit_table!
 
       RSpec::Mocks.space.reset_all
-      columns = PgOnlineSchemaChange::Query.table_columns(client, "pgosc_audit_table_for_books")
+      columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.audit_table.to_s)
 
       expect(columns).to eq([
                               { "column_name" => "\"operation_type\"", "type" => "text", "column_position" => 1,
@@ -121,13 +117,13 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         $$
         BEGIN
           IF ( TG_OP = 'INSERT') THEN
-            INSERT INTO "pgosc_audit_table_for_books" select 'INSERT', now(), NEW.* ;
+            INSERT INTO "#{described_class.audit_table}" select 'INSERT', now(), NEW.* ;
             RETURN NEW;
           ELSIF ( TG_OP = 'UPDATE') THEN
-            INSERT INTO "pgosc_audit_table_for_books" select 'UPDATE', now(),  NEW.* ;
+            INSERT INTO "#{described_class.audit_table}" select 'UPDATE', now(),  NEW.* ;
             RETURN NEW;
           ELSIF ( TG_OP = 'DELETE') THEN
-            INSERT INTO "pgosc_audit_table_for_books" select 'DELETE', now(), OLD.* ;
+            INSERT INTO "#{described_class.audit_table}" select 'DELETE', now(), OLD.* ;
             RETURN NEW;
           END IF;
         END;
@@ -144,7 +140,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
 
       described_class.setup_trigger!
-      expect(described_class.audit_table).to eq("pgosc_audit_table_for_books")
+      expect(described_class.audit_table).to eq(described_class.audit_table.to_s)
     end
 
     it "closes transaction when it couldn't acquire lock" do
@@ -269,11 +265,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "creates the shadow table matching parent table" do
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:async_exec).with("SELECT fix_serial_sequence('books', 'pgosc_shadow_table_for_books');").and_call_original
-      expect(client.connection).to receive(:async_exec).with("SELECT create_table_all('books', 'pgosc_shadow_table_for_books');").and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
-
       described_class.setup_shadow_table!
 
       RSpec::Mocks.space.reset_all
@@ -296,22 +287,22 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                                 "column_position" => 7, "column_name_regular" => "last_login" },
                             ])
 
-      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "pgosc_shadow_table_for_books")
-      expect(columns).to eq(["CREATE UNIQUE INDEX pgosc_shadow_table_for_books_pkey ON pgosc_shadow_table_for_books USING btree (user_id)",
-                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_username_key ON pgosc_shadow_table_for_books USING btree (username)",
-                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_email_key ON pgosc_shadow_table_for_books USING btree (email)"])
+      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, described_class.shadow_table.to_s)
+      expect(columns).to eq(["CREATE UNIQUE INDEX #{described_class.shadow_table}_pkey ON #{described_class.shadow_table} USING btree (user_id)",
+                             "CREATE UNIQUE INDEX #{described_class.shadow_table}_username_key ON #{described_class.shadow_table} USING btree (username)",
+                             "CREATE UNIQUE INDEX #{described_class.shadow_table}_email_key ON #{described_class.shadow_table} USING btree (email)"])
 
       foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client,
-                                                                      "pgosc_shadow_table_for_books")
+                                                                      described_class.shadow_table.to_s)
       expect(foreign_keys).to eq([
-                                   { "table_on" => "pgosc_shadow_table_for_books", "table_from" => "sellers",
-                                     "constraint_type" => "f", "constraint_name" => "pgosc_shadow_table_for_books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+                                   { "table_on" => described_class.shadow_table.to_s, "table_from" => "sellers",
+                                     "constraint_type" => "f", "constraint_name" => "#{described_class.shadow_table}_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
                                  ])
       primary_keys = PgOnlineSchemaChange::Query.get_primary_keys_for(client,
-                                                                      "pgosc_shadow_table_for_books")
+                                                                      described_class.shadow_table.to_s)
       expect(primary_keys).to eq([
-                                   { "constraint_name" => "pgosc_shadow_table_for_books_pkey", "constraint_type" => "p",
-                                     "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)", "table_from" => "-", "table_on" => "pgosc_shadow_table_for_books" },
+                                   { "constraint_name" => "#{described_class.shadow_table}_pkey", "constraint_type" => "p",
+                                     "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)", "table_from" => "-", "table_on" => described_class.shadow_table.to_s },
                                  ])
     end
 
@@ -344,11 +335,11 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "succesfully" do
       query = <<~SQL
-        ALTER TABLE pgosc_shadow_table_for_books SET (
+        ALTER TABLE #{described_class.shadow_table} SET (
           autovacuum_enabled = false, toast.autovacuum_enabled = false
         );
 
-        ALTER TABLE pgosc_audit_table_for_books SET (
+        ALTER TABLE #{described_class.audit_table} SET (
           autovacuum_enabled = false, toast.autovacuum_enabled = false
         );
       SQL
@@ -524,7 +515,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "succesfully" do
       expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:async_exec).with("ALTER TABLE pgosc_shadow_table_for_books ADD COLUMN purchased boolean DEFAULT false").and_call_original
+      expect(client.connection).to receive(:async_exec).with("ALTER TABLE #{described_class.shadow_table} ADD COLUMN purchased boolean DEFAULT false").and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
       described_class.run_alter_statement!
@@ -576,7 +567,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       it "succesfully" do
         expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-        expect(client.connection).to receive(:async_exec).with("ALTER TABLE pgosc_shadow_table_for_books DROP email").and_call_original
+        expect(client.connection).to receive(:async_exec).with("ALTER TABLE #{described_class.shadow_table} DROP email").and_call_original
         expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
         described_class.run_alter_statement!
@@ -623,7 +614,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       it "succesfully" do
         expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-        expect(client.connection).to receive(:async_exec).with("ALTER TABLE pgosc_shadow_table_for_books RENAME COLUMN email TO new_email").and_call_original
+        expect(client.connection).to receive(:async_exec).with("ALTER TABLE #{described_class.shadow_table} RENAME COLUMN email TO new_email").and_call_original
         expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
         described_class.run_alter_statement!
@@ -680,12 +671,18 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       PgOnlineSchemaChange::Replay.play!(rows)
     end
 
+    it "ensures helper table names are of proper length" do
+      expect(described_class.shadow_table.length).to eq(21)
+      expect(described_class.audit_table.length).to eq(21)
+      expect(described_class.old_primary_table.length).to eq(20)
+    end
+
     it "sucessfully renames the tables" do
       described_class.swap!
 
       # Fetch rows from the original primary table
       select_query = <<~SQL
-        SELECT * FROM pgosc_old_primary_table_books;
+        SELECT * FROM #{described_class.old_primary_table};
       SQL
       rows = []
       PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
@@ -705,9 +702,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       # confirm indexes on newly renamed table
       columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
-      expect(columns).to eq(["CREATE UNIQUE INDEX pgosc_shadow_table_for_books_pkey ON books USING btree (user_id)",
-                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_username_key ON books USING btree (username)",
-                             "CREATE UNIQUE INDEX pgosc_shadow_table_for_books_email_key ON books USING btree (email)"])
+      expect(columns).to eq(["CREATE UNIQUE INDEX #{described_class.shadow_table}_pkey ON books USING btree (user_id)",
+                             "CREATE UNIQUE INDEX #{described_class.shadow_table}_username_key ON books USING btree (username)",
+                             "CREATE UNIQUE INDEX #{described_class.shadow_table}_email_key ON books USING btree (email)"])
     end
 
     it "sucessfully drops the trigger" do
