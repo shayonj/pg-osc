@@ -1,3 +1,5 @@
+require "securerandom"
+
 module PgOnlineSchemaChange
   class Orchestrate
     extend Helper
@@ -16,6 +18,13 @@ module PgOnlineSchemaChange
         # install functions
         Query.run(client.connection, FUNC_FIX_SERIAL_SEQUENCE)
         Query.run(client.connection, FUNC_CREATE_TABLE_ALL)
+
+        # Set this early on to ensure their creation and cleanup (unexpected)
+        # happens at all times. IOW, the calls from Store.get always return
+        # the same value.
+        Store.set(:old_primary_table, "pgosc_op_table_#{client.table}")
+        Store.set(:audit_table, "pgosc_at_#{client.table}_#{random_string}")
+        Store.set(:shadow_table, "pgosc_st_#{client.table}_#{random_string}")
       end
 
       def run!(options)
@@ -69,7 +78,6 @@ module PgOnlineSchemaChange
       end
 
       def setup_audit_table!
-        audit_table = Store.set(:audit_table, "pgosc_audit_table_for_#{client.table}")
         logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
@@ -120,8 +128,6 @@ module PgOnlineSchemaChange
       end
 
       def setup_shadow_table!
-        shadow_table = Store.set(:shadow_table, "pgosc_shadow_table_for_#{client.table}")
-
         logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
         Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');")
@@ -185,8 +191,6 @@ module PgOnlineSchemaChange
       def swap!
         logger.info("Performing swap!")
 
-        old_primary_table = Store.set(:old_primary_table, "pgosc_old_primary_table_#{client.table}")
-
         foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
         storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});"
 
@@ -242,6 +246,10 @@ module PgOnlineSchemaChange
         SQL
 
         Query.run(client.connection, sql)
+      end
+
+      private def random_string
+        @random_string ||= SecureRandom.hex(3)
       end
     end
   end
