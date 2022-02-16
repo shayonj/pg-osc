@@ -2,6 +2,8 @@ require "securerandom"
 
 module PgOnlineSchemaChange
   class Orchestrate
+    SWAP_STATEMENT_TIMEOUT = "5s".freeze
+
     extend Helper
 
     class << self
@@ -201,6 +203,8 @@ module PgOnlineSchemaChange
 
         raise AccessExclusiveLockNotAcquired unless opened
 
+        Query.run(client.connection, "SET statement_timeout to '#{SWAP_STATEMENT_TIMEOUT}';", opened)
+
         rows = Replay.rows_to_play(opened)
         Replay.play!(rows, opened)
 
@@ -215,6 +219,7 @@ module PgOnlineSchemaChange
         Query.run(client.connection, sql)
       ensure
         Query.run(client.connection, "COMMIT;")
+        Query.run(client.connection, "SET statement_timeout = 0;")
       end
 
       def run_analyze!
