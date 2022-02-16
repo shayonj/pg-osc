@@ -3,7 +3,7 @@
 
 pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads. 
 
-`pg-osc` uses the concept of shadow table to perform schema changes. At a high level, it copies the contents from a primary table to a shadow table, performs the schema change on the shadow table and swaps the table names in the end while preserving all changes to the primary table using triggers (via audit table).
+`pg-osc` uses the concept of shadow table to perform schema changes. At a high level, it creates a shadow table that looks structurally the same as the primary table, performs the schema change on the shadow table, copies contents from the primary table to the shadow table and swaps the table names in the end while preserving all changes to the primary table using triggers (via audit table).
 
 `pg-osc` is inspired by the design and workings of tools like `pg_repack` and `pt-online-schema-change` (MySQL). Read more below on [how does it work](#how-does-it-work), [prominent features](#prominent-features), the [caveats](#caveats) and [examples](#examples)
 
