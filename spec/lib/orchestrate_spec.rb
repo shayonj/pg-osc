@@ -296,7 +296,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                                                                       described_class.shadow_table.to_s)
       expect(foreign_keys).to eq([
                                    { "table_on" => described_class.shadow_table.to_s, "table_from" => "sellers",
-                                     "constraint_type" => "f", "constraint_name" => "#{described_class.shadow_table}_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+                                     "constraint_type" => "f", "constraint_name" => "#{client.table}_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
                                  ])
       primary_keys = PgOnlineSchemaChange::Query.get_primary_keys_for(client,
                                                                       described_class.shadow_table.to_s)
