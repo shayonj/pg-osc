@@ -191,6 +191,7 @@ To install this gem onto your local machine, run `bundle exec rake install`.
 
 ## Releasing
 
+- Bump version in `version.rb`
 - `git tag v0.1.0`
 - `git push origin --tags`
 - `gem build pg_online_schema_change.gemspec`
