@@ -54,7 +54,7 @@ FUNC_CREATE_TABLE_ALL = <<~SQL.freeze
       EXECUTE format(
               'ALTER TABLE %s add constraint %s %s',
               newsource_table,
-              replace(rec.conname, source_table, newsource_table),
+              rec.conname,
               pg_get_constraintdef(rec.oid));
       END LOOP;
     END
