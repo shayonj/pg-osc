@@ -189,6 +189,14 @@ rvm use 3.0.0
 
 To install this gem onto your local machine, run `bundle exec rake install`. 
 
+## Releasing
+
+- `git tag v0.1.0`
+- `git push origin --tags`
+- `gem build pg_online_schema_change.gemspec`
+- `gem push pg_online_schema_change-0.1.0.gem`
+- Update `CHANGELOG.md`
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/shayonj/pg-online-schema-change. 
