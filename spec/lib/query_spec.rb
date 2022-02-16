@@ -117,7 +117,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       end
     end
 
-    it "returns the alter query succesfully" do
+    it "returns the alter query successfully" do
       query = described_class.get_all_constraints_for(client).find do |row|
         row["constraint_name"] == "chapters_book_id_fkey"
       end
@@ -137,7 +137,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(query).to eq(nil)
     end
 
-    it "runs the alter query and rollsback succesfully" do
+    it "runs the alter query and rollsback successfully" do
       query = described_class.get_all_constraints_for(client).find do |row|
         row["constraint_name"] == "chapters_book_id_fkey"
       end
@@ -498,7 +498,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".storage_parameters_for" do
-    it "returns all the parameters succesfully" do
+    it "returns all the parameters successfully" do
       client = PgOnlineSchemaChange::Client.new(client_options)
 
       result = described_class.storage_parameters_for(client, "books")
@@ -600,7 +600,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       setup_tables(client)
     end
 
-    it "succesfully acquires lock on first attempt and returns true" do
+    it "successfully acquires lock on first attempt and returns true" do
       query = "SELECT * FROM pg_locks WHERE locktype = 'relation' AND relation='#{client.table}'::regclass::oid"
       lock = []
 
@@ -741,7 +741,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(result.first).to eq(nil)
     end
 
-    it "succesfully kills open transaction/backends" do
+    it "successfully kills open transaction/backends" do
       # acquire a lock from another process to test
 
       pid = fork do

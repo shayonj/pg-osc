@@ -7,7 +7,7 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 
 `pg-osc` is inspired by the design and workings of tools like `pg_repack` and `pt-online-schema-change` (MySQL). Read more below on [how does it work](#how-does-it-work), [prominent features](#prominent-features), the [caveats](#caveats) and [examples](#examples)
 
-⚠️ ⚠️ THIS IS CURRENTLY WIP AND IS CONSIDERED EXPERIMENTAL ⚠️ ⚠️ 
+⚠️ Proceed with caution when using this on production like workloads. Best to try on similar setup or staging like environment first. Read on below for some examples and caveats.
 
 ## Installation
 

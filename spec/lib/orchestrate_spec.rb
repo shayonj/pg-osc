@@ -333,7 +333,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.setup_shadow_table!
     end
 
-    it "succesfully" do
+    it "successfully" do
       query = <<~SQL
         ALTER TABLE #{described_class.shadow_table} SET (
           autovacuum_enabled = false, toast.autovacuum_enabled = false
@@ -387,7 +387,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.run_alter_statement!
     end
 
-    it "succesfully" do
+    it "successfully" do
       described_class.copy_data!
 
       RSpec::Mocks.space.reset_all
@@ -420,7 +420,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         PgOnlineSchemaChange::Client.new(client_options)
       end
 
-      it "succesfully" do
+      it "successfully" do
         described_class.copy_data!
 
         RSpec::Mocks.space.reset_all
@@ -454,7 +454,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         PgOnlineSchemaChange::Client.new(client_options)
       end
 
-      it "succesfully" do
+      it "successfully" do
         described_class.copy_data!
 
         RSpec::Mocks.space.reset_all
@@ -481,7 +481,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         PgOnlineSchemaChange::Client.new(client_options)
       end
 
-      it "succesfully" do
+      it "successfully" do
         described_class.copy_data!
 
         RSpec::Mocks.space.reset_all
@@ -513,7 +513,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.setup_shadow_table!
     end
 
-    it "succesfully" do
+    it "successfully" do
       expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:async_exec).with("ALTER TABLE #{described_class.shadow_table} ADD COLUMN purchased boolean DEFAULT false").and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
@@ -565,7 +565,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         described_class.setup_shadow_table!
       end
 
-      it "succesfully" do
+      it "successfully" do
         expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
         expect(client.connection).to receive(:async_exec).with("ALTER TABLE #{described_class.shadow_table} DROP email").and_call_original
         expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
@@ -612,7 +612,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         described_class.setup_shadow_table!
       end
 
-      it "succesfully" do
+      it "successfully" do
         expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
         expect(client.connection).to receive(:async_exec).with("ALTER TABLE #{described_class.shadow_table} RENAME COLUMN email TO new_email").and_call_original
         expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original

@@ -1,6 +1,0 @@
-# TODO: support dry run mode
-# TODO: Potential to refactor Orchestrator class and extract some functions into a utility/helper class
-# TODO: Refactor class level vars on Orchestrate. Might need some form of "Store".
-# TODO: BEGIN ISOLATION LEVEL SERIALIZABLE for copying rows
-# TODO: SUPPORT TABLE RENAME?
-# TODO: REMOVE _pgsoc suffixes from index name and restore them to their original name

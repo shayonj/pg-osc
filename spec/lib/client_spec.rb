@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe PgOnlineSchemaChange::Client do
-  it "succesfully sets class variables" do
+  it "successfully sets class variables" do
     client = described_class.new(client_options)
     expect(client.host).to eq("127.0.0.1")
     expect(client.password).to eq("password")

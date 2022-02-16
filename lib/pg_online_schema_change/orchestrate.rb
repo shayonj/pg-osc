@@ -46,6 +46,8 @@ module PgOnlineSchemaChange
         run_analyze!
         validate_constraints!
         drop_and_cleanup!
+
+        logger.info("All tasks successfully completed")
       rescue StandardError => e
         logger.fatal("Something went wrong: #{e.message}", { e: e })
 
