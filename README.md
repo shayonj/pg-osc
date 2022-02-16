@@ -33,6 +33,8 @@ Or install it yourself as:
 ## Usage
 
 ```
+pg-online-schema-change help perform
+
 Usage:
   pg-online-schema-change perform -a, --alter-statement=ALTER_STATEMENT -d, --dbname=DBNAME -h, --host=HOST -p, --port=N -s, --schema=SCHEMA -u, --username=USERNAME -w, --password=PASSWORD
 
