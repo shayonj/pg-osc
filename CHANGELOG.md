@@ -1,3 +1,7 @@
+## [0.2.0] - 2022-02-17
+
+- Use ISOLATION LEVEL SERIALIZABLE ([#42](https://github.com/shayonj/pg-online-schema-change/pull/42)) (props to @jfrost)
+
 ## [0.1.0] - 2022-02-16
 
 Initial release
