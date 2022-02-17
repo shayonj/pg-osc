@@ -37,10 +37,10 @@ module PgOnlineSchemaChange
 
         setup_audit_table!
         setup_trigger!
-        setup_shadow_table!
-        disable_vacuum!
-        run_alter_statement!
-        copy_data!
+        setup_shadow_table! # re-uses transaction with serializable
+        disable_vacuum! # re-uses transaction with serializable
+        run_alter_statement! # re-uses transaction with serializable
+        copy_data! # re-uses transaction with serializable
         run_analyze!
         replay_and_swap!
         run_analyze!
@@ -132,17 +132,27 @@ module PgOnlineSchemaChange
       end
 
       def setup_shadow_table!
+        # re-uses transaction with serializable
+        # This ensures that all queries from here till copy_data run with serializable.
+        # This is to to ensure that once the trigger is added to the primay table
+        # and contents being copied into the shadow, after a delete all on audit table,
+        # any replaying of rows that happen next from audit table do not contain
+        # any duplicates. We are ensuring there are no race conditions between
+        # adding the trigger, till the copy ends, since they all happen in the
+        # same serializable transaction.
+        Query.run(client.connection, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", true)
         logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
-        Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');")
+        Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');", true)
 
         # update serials
-        Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table}', '#{shadow_table}');")
+        Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table}', '#{shadow_table}');", true)
       end
 
-      # Disabling vacuum to avoid any issues during the process
       def disable_vacuum!
-        result = Query.storage_parameters_for(client, client.table) || ""
+        # re-uses transaction with serializable
+        # Disabling vacuum to avoid any issues during the process
+        result = Query.storage_parameters_for(client, client.table, true) || ""
         primary_table_storage_parameters = Store.set(:primary_table_storage_parameters, result)
 
         logger.debug("Disabling vacuum on shadow and audit table",
@@ -156,32 +166,39 @@ module PgOnlineSchemaChange
             autovacuum_enabled = false, toast.autovacuum_enabled = false
           );
         SQL
-        Query.run(client.connection, sql)
+        Query.run(client.connection, sql, true)
       end
 
       def run_alter_statement!
+        # re-uses transaction with serializable
         statement = Query.alter_statement_for(client, shadow_table)
         logger.info("Running alter statement on shadow table",
                     { shadow_table: shadow_table, parent_table: client.table })
-        Query.run(client.connection, statement)
+        Query.run(client.connection, statement, true)
 
         Store.set(:dropped_columns_list, Query.dropped_columns(client))
         Store.set(:renamed_columns_list, Query.renamed_columns(client))
       end
 
-      # Begin the process to copy data into copy table
-      # depending on the size of the table, this can be a time
-      # taking operation.
       def copy_data!
-        logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table })
+        # re-uses transaction with serializable
+        # Begin the process to copy data into copy table
+        # depending on the size of the table, this can be a time
+        # taking operation.
+        logger.info("Clearing contents of audit table before copy..",
+                    { shadow_table: shadow_table, parent_table: client.table })
+        Query.run(client.connection, "DELETE FROM #{audit_table}", true)
 
+        logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table })
         if client.copy_statement
           query = format(client.copy_statement, shadow_table: shadow_table)
-          return Query.run(client.connection, query)
+          return Query.run(client.connection, query, true)
         end
 
         sql = Query.copy_data_statement(client, shadow_table)
-        Query.run(client.connection, sql)
+        Query.run(client.connection, sql, true)
+      ensure
+        Query.run(client.connection, "COMMIT;") # commit the serializable transaction
       end
 
       def replay_and_swap!
