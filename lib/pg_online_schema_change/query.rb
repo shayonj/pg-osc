@@ -60,7 +60,7 @@ module PgOnlineSchemaChange
         result
       end
 
-      def table_columns(client, table = nil)
+      def table_columns(client, table = nil, reuse_trasaction = false)
         sql = <<~SQL
           SELECT attname as column_name, format_type(atttypid, atttypmod) as type, attnum as column_position FROM   pg_attribute
           WHERE  attrelid = \'#{table || client.table}\'::regclass AND attnum > 0 AND NOT attisdropped
@@ -68,7 +68,7 @@ module PgOnlineSchemaChange
         SQL
         mapped_columns = []
 
-        run(client.connection, sql) do |result|
+        run(client.connection, sql, reuse_trasaction) do |result|
           mapped_columns = result.map do |row|
             row["column_name_regular"] = row["column_name"]
             row["column_name"] = client.connection.quote_ident(row["column_name"])
@@ -210,13 +210,13 @@ module PgOnlineSchemaChange
         columns.first
       end
 
-      def storage_parameters_for(client, table)
+      def storage_parameters_for(client, table, reuse_trasaction = false)
         query = <<~SQL
           SELECT array_to_string(reloptions, ',') as params FROM pg_class WHERE relname=\'#{table}\';
         SQL
 
         columns = []
-        run(client.connection, query) do |result|
+        run(client.connection, query, reuse_trasaction) do |result|
           columns = result.map { |row| row["params"] }
         end
 
@@ -266,8 +266,8 @@ module PgOnlineSchemaChange
         run(client.connection, query, true)
       end
 
-      def copy_data_statement(client, shadow_table)
-        select_columns = table_columns(client).map do |entry|
+      def copy_data_statement(client, shadow_table, reuse_trasaction = false)
+        select_columns = table_columns(client, client.table, reuse_trasaction).map do |entry|
           entry["column_name_regular"]
         end
 

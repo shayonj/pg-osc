@@ -383,8 +383,37 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       ingest_dummy_data_into_dummy_table(client)
 
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
       described_class.setup_shadow_table!
       described_class.run_alter_statement!
+    end
+
+    it "succesfully truncates audit table" do
+      # add an entry to insert a row (via trigger)
+      # to audit table
+      query = <<~SQL
+        INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+      SQL
+      PgOnlineSchemaChange::Query.run(client.connection, query)
+
+      query = <<~SQL
+        select * from #{described_class.audit_table};
+      SQL
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows.count).to eq(1)
+
+      described_class.copy_data!
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows.count).to eq(0)
     end
 
     it "successfully" do
