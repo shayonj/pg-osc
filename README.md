@@ -1,4 +1,5 @@
-# pg-online-schema-change / pg-osc
+# pg-osc
+
 [![CircleCI](https://circleci.com/gh/shayonj/pg-osc/tree/main.svg?style=shield)](https://circleci.com/gh/shayonj/pg-osc/tree/main)
 [![Gem Version](https://badge.fury.io/rb/pg_online_schema_change.svg)](https://badge.fury.io/rb/pg_online_schema_change)
 
@@ -10,6 +11,24 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 
 ⚠️ Proceed with caution when using this on production like workloads. Best to try on similar setup or staging like environment first. Read on below for some examples and caveats.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Requirements](#requirements)
+- [Usage](#usage)
+- [How does it work](#how-does-it-work)
+- [Prominent features](#prominent-features)
+- [Examples](#examples)
+  * [Renaming a column](#renaming-a-column)
+  * [Multiple ALTER statements](#multiple-alter-statements)
+  * [Kill other backends after 5s](#kill-other-backends-after-5s)
+  * [Backfill data](#backfill-data)
+- [Caveats](#caveats)
+- [Development](#development)
+- [Releasing](#releasing)
+- [Contributing](#contributing)
+- [License](#license)
+- [Code of Conduct](#code-of-conduct)
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -160,7 +179,7 @@ pg-online-schema-change perform \
   --copy-statement "/src/query.sql" \
   --drop
 ```
-### Caveats
+## Caveats
 - A primary key should exist on the table; without it, `pg-osc` will raise an exception
 	- This is because - currently there is no other way to uniquely identify rows during replay.
 - `pg-osc` will acquire `ACCESS EXCLUSIVE` lock on the parent table twice during the operation.
