@@ -1,6 +1,6 @@
 ## [0.2.0] - 2022-02-17
 
-- Use ISOLATION LEVEL SERIALIZABLE ([#42](https://github.com/shayonj/pg-online-schema-change/pull/42)) (props to @jfrost)
+- Use ISOLATION LEVEL SERIALIZABLE ([#42](https://github.com/shayonj/pg-osc/pull/42)) (props to @jfrost)
 
 ## [0.1.0] - 2022-02-16
 
@@ -10,4 +10,4 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 
 `pg-osc` uses the concept of shadow table to perform schema changes. At a high level, it copies the contents from a primary table to a shadow table, performs the schema change on the shadow table and swaps the table names in the end while preserving all changes to the primary table using triggers (via audit table).
 
-Checkout [Readme](https://github.com/shayonj/pg-online-schema-change#readme) for more details.
+Checkout [Readme](https://github.com/shayonj/pg-osc#readme) for more details.

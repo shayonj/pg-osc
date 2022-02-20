@@ -1,5 +1,5 @@
 # pg-online-schema-change / pg-osc
-[![CircleCI](https://circleci.com/gh/shayonj/pg-online-schema-change/tree/main.svg?style=shield)](https://circleci.com/gh/shayonj/pg-online-schema-change/tree/main)
+[![CircleCI](https://circleci.com/gh/shayonj/pg-osc/tree/main.svg?style=shield)](https://circleci.com/gh/shayonj/pg-osc/tree/main)
 [![Gem Version](https://badge.fury.io/rb/pg_online_schema_change.svg)](https://badge.fury.io/rb/pg_online_schema_change)
 
 pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads. 
@@ -92,7 +92,7 @@ print the version
 - Copies over indexes and Foreign keys.
 - Optionally drop or retain old tables in the end.
 - Backfill old/new columns as data is copied from primary table to shadow table, and then perform the swap. [Example](#backfill-data)
-- **TBD**: Ability to reverse the change with no data loss. [tracking issue](https://github.com/shayonj/pg-online-schema-change/issues/14)
+- **TBD**: Ability to reverse the change with no data loss. [tracking issue](https://github.com/shayonj/pg-osc/issues/14)
 
 ## Examples
 
@@ -200,11 +200,11 @@ To install this gem onto your local machine, run `bundle exec rake install`.
 - `gem build pg_online_schema_change.gemspec`
 - `gem push pg_online_schema_change-0.1.0.gem`
 - Update `CHANGELOG.md`
-- Create a new release - https://github.com/shayonj/pg-online-schema-change/releases/new
+- Create a new release - https://github.com/shayonj/pg-osc/releases/new
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/shayonj/pg-online-schema-change. 
+Bug reports and pull requests are welcome on GitHub at https://github.com/shayonj/pg-osc. 
 
 ## License
 
@@ -212,4 +212,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the PgOnlineSchemaChange project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/shayonj/pg-online-schema-change/blob/main/CODE_OF_CONDUCT.md).
+Everyone interacting in the PgOnlineSchemaChange project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/shayonj/pg-osc/blob/main/CODE_OF_CONDUCT.md).

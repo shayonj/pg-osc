@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "pg-online-schema-change is a tool for schema changes for Postgres tables with minimal locks"
   spec.description = "pg-online-schema-change (pg-osc) is a tool for making schema changes (any ALTER statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads."
-  spec.homepage = "https://github.com/shayonj/pg-online-schema-change"
+  spec.homepage = "https://github.com/shayonj/pg-osc"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 2.6.0"
 
