@@ -1,17 +1,21 @@
+# frozen_string_literal: true
+
 require "pg_query"
 require "pg"
 
 module PgOnlineSchemaChange
   class Store
     class << self
-      @@object = {}
+      @object = {}
 
       def get(key)
-        @@object[key.to_s] || @@object[key.to_sym]
+        @object ||= {}
+        @object[key.to_s] || @object[key.to_sym]
       end
 
       def set(key, value)
-        @@object[key.to_sym] = value
+        @object ||= {}
+        @object[key.to_sym] = value
       end
     end
   end

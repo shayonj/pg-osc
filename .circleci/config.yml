@@ -39,6 +39,10 @@ jobs:
             - vendor/bundle
  
       - run:
+          name: lint
+          command: bundle exec rubocop
+
+      - run:
           name: Parallel RSpec
           command: bundle exec rspec
  

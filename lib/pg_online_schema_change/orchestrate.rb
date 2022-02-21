@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require "securerandom"
 
 module PgOnlineSchemaChange
   class Orchestrate
-    SWAP_STATEMENT_TIMEOUT = "5s".freeze
+    SWAP_STATEMENT_TIMEOUT = "5s"
 
     extend Helper
 
@@ -70,7 +72,7 @@ module PgOnlineSchemaChange
         reader = setup_signals!
         signal = reader.gets.chomp
 
-        while !reader.closed? && IO.select([reader])
+        while !reader.closed? && IO.select([reader]) # rubocop:disable Lint/UnreachableLoop
           logger.info "Signal #{signal} received, cleaning up"
 
           client.connection.cancel
@@ -153,7 +155,7 @@ module PgOnlineSchemaChange
         # re-uses transaction with serializable
         # Disabling vacuum to avoid any issues during the process
         result = Query.storage_parameters_for(client, client.table, true) || ""
-        primary_table_storage_parameters = Store.set(:primary_table_storage_parameters, result)
+        Store.set(:primary_table_storage_parameters, result)
 
         logger.debug("Disabling vacuum on shadow and audit table",
                      { shadow_table: shadow_table, audit_table: audit_table })
@@ -185,8 +187,7 @@ module PgOnlineSchemaChange
         # Begin the process to copy data into copy table
         # depending on the size of the table, this can be a time
         # taking operation.
-        logger.info("Clearing contents of audit table before copy..",
-                    { shadow_table: shadow_table, parent_table: client.table })
+        logger.info("Clearing contents of audit table before copy..", { shadow_table: shadow_table, parent_table: client.table })
         Query.run(client.connection, "DELETE FROM #{audit_table}", true)
 
         logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table })
@@ -272,7 +273,9 @@ module PgOnlineSchemaChange
         Query.run(client.connection, sql)
       end
 
-      private def random_string
+      private
+
+      def random_string
         @random_string ||= SecureRandom.hex(3)
       end
     end

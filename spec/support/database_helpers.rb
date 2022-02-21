@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DatabaseHelpers
   def schema
     ENV["POSTGRES_SCHEMA"] || "test_schema"

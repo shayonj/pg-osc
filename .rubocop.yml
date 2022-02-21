@@ -1,3 +1,5 @@
+inherit_from: .rubocop_todo.yml
+
 require:
   - rubocop-rspec
   - rubocop-packaging
@@ -14,69 +16,68 @@ AllCops:
     - "vendor/**/*"
 
 Layout/HashAlignment:
-  EnforcedColonStyle:
-    - table
-    - key
-  EnforcedHashRocketStyle:
-    - table
-    - key
+  EnforcedColonStyle: key
+  EnforcedHashRocketStyle:  key
 
 Layout/SpaceAroundEqualsInParameterDefault:
-  EnforcedStyle: no_space
+  EnforcedStyle: space
 
 Metrics/AbcSize:
-  Max: 20
+  Enabled: true
+  Max: 40
   Exclude:
-    - "test/**/*"
+    - "spec/**/*"
 
 Metrics/BlockLength:
+  Max: 100
   Exclude:
     - "*.gemspec"
     - "Rakefile"
+    - "spec/**/*"
 
 Metrics/ClassLength:
   Exclude:
     - "test/**/*"
 
 Metrics/MethodLength:
-  Max: 18
+  Max: 30
   Exclude:
     - "test/**/*"
 
 Metrics/ParameterLists:
-  Max: 6
+  Max: 5
 
 Naming/MemoizedInstanceVariableName:
-  Enabled: false
+  Enabled: true
 
 Naming/VariableNumber:
-  Enabled: false
-
-Rake/Desc:
-  Enabled: false
+  Enabled: true
 
 Style/BarePercentLiterals:
   EnforcedStyle: percent_q
 
 Style/ClassAndModuleChildren:
-  Enabled: false
+  Enabled: true
 
 Style/Documentation:
   Enabled: false
 
 Style/DoubleNegation:
-  Enabled: false
+  Enabled: true
 
 Style/EmptyMethod:
-  Enabled: false
+  Enabled: true
 
 Style/FrozenStringLiteralComment:
-  Enabled: false
+  Enabled: true
 
 Style/NumericPredicate:
-  Enabled: false
+  Enabled: true
 
 Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 
 Style/TrivialAccessors:
@@ -91,9 +92,41 @@ Style/TrailingCommaInArrayLiteral:
 Style/TrailingCommaInHashLiteral:
   EnforcedStyleForMultiline: comma
 
-Style/SpaceAroundEqualsInParameterDefault:
-  EnforcedStyle: space
-
-Style/MultilineHashBraceLayout:
+Layout/MultilineArrayBraceLayout:
   Enabled: true
   EnforcedStyle: symmetrical
+
+Layout/MultilineHashBraceLayout:
+  Enabled: true
+  EnforcedStyle: symmetrical
+
+Layout/MultilineAssignmentLayout:
+  Enabled: true
+  EnforcedStyle: same_line
+
+Layout/FirstArrayElementIndentation:
+  Enabled: true
+  EnforcedStyle: consistent
+
+Layout/FirstHashElementIndentation:
+  Enabled: true
+  EnforcedStyle: consistent
+
+Layout/MultilineHashKeyLineBreaks:
+  Enabled: true
+
+Layout/LineLength:
+  Enabled: true
+  Max: 250
+
+Style/FormatStringToken:
+  Enabled: true
+  EnforcedStyle: template
+
+RSpec/MessageSpies:
+  Enabled: true
+  EnforcedStyle: receive
+
+RSpec/FilePath:
+  Enabled: true
+  SpecSuffixOnly: true
