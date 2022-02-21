@@ -15,7 +15,7 @@ echo "=== Sleeping for 5s ===="
 sleep 5 
 
 echo "=== Building Image ===="
-docker build . --build-arg VERSION=$VERSION -t pg-osc
+docker build . --build-arg VERSION=$VERSION -t shayonj/pg-osc:$VERSION
 
 echo "=== Tagging Image ===="
 docker image tag shayonj/pg-osc:$VERSION shayonj/pg-osc:latest
