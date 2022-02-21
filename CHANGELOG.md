@@ -1,3 +1,8 @@
+## [0.3.0] - 2022-02-21
+
+- Explicitly call dependencies and bump dependencies by @shayonj https://github.com/shayonj/pg-osc/pull/44
+- Introduce Dockerfile and release process https://github.com/shayonj/pg-osc/pull/45
+
 ## [0.2.0] - 2022-02-17
 
 - Use ISOLATION LEVEL SERIALIZABLE ([#42](https://github.com/shayonj/pg-osc/pull/42)) (props to @jfrost)
