@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["Shayon Mukherjee"]
   spec.email = ["shayonj@gmail.com"]
 
-  spec.summary = "pg-online-schema-change is a tool for schema changes for Postgres tables with minimal locks"
-  spec.description = "pg-online-schema-change (pg-osc) is a tool for making schema changes (any ALTER statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads."
+  spec.description = "Easy CLI tool for making non-blocking zero downtime schema changes in PostgreSQL"
+  spec.summary = spec.description
   spec.homepage = "https://github.com/shayonj/pg-osc"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 2.6.0"
@@ -31,4 +31,18 @@ Gem::Specification.new do |spec|
   spec.metadata = {
     "rubygems_mfa_required" => "true",
   }
+
+  spec.add_runtime_dependency "ougai", "~> 2.0.0"
+  spec.add_runtime_dependency "pg", "~> 1.3.2"
+  spec.add_runtime_dependency "pg_query", "~> 2.1.3"
+  spec.add_runtime_dependency "thor", "~> 1.2.1"
+
+  spec.add_development_dependency "pry", "~> 0.14.1"
+  spec.add_development_dependency "rake", "~> 13.0"
+  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rubocop", "~> 1.23.0"
+  spec.add_development_dependency "rubocop-packaging", "~> 0.5.1"
+  spec.add_development_dependency "rubocop-performance", "~> 1.12.0"
+  spec.add_development_dependency "rubocop-rake", "~> 0.6.0"
+  spec.add_development_dependency "rubocop-rspec", "~> 2.7.0"
 end
