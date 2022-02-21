@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "thor"
 
 module PgOnlineSchemaChange
@@ -25,7 +27,7 @@ module PgOnlineSchemaChange
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)
 
-      PgOnlineSchemaChange.logger = client_options.verbose
+      PgOnlineSchemaChange.logger(verbose: client_options.verbose)
       PgOnlineSchemaChange::Orchestrate.run!(client_options)
     end
 

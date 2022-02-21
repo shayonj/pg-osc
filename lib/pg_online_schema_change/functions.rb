@@ -1,4 +1,6 @@
-FUNC_FIX_SERIAL_SEQUENCE = <<~SQL.freeze
+# frozen_string_literal: true
+
+FUNC_FIX_SERIAL_SEQUENCE = <<~SQL
     CREATE OR REPLACE FUNCTION fix_serial_sequence(_table regclass, _newtable text)
     RETURNS void AS
     $func$
@@ -35,7 +37,7 @@ FUNC_FIX_SERIAL_SEQUENCE = <<~SQL.freeze
   $func$  LANGUAGE plpgsql VOLATILE;
 SQL
 
-FUNC_CREATE_TABLE_ALL = <<~SQL.freeze
+FUNC_CREATE_TABLE_ALL = <<~SQL
   CREATE OR REPLACE FUNCTION create_table_all(source_table text, newsource_table text)
     RETURNS void language plpgsql
     as $$

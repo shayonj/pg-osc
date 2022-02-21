@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module PgOnlineSchemaChange
   module Helper
     def primary_key
@@ -15,7 +17,14 @@ module PgOnlineSchemaChange
       result = Store.send(:get, method)
       return result if result
 
-      raise ArgumentError, "Method `#{method}` doesn't exist."
+      super
+    end
+
+    def respond_to_missing?(method_name, *args)
+      result = Store.send(:get, method)
+      return true if result
+
+      super
     end
   end
 end

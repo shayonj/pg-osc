@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "pg_query"
 require "pg"
 
@@ -5,7 +7,7 @@ module PgOnlineSchemaChange
   class Query
     extend Helper
 
-    INDEX_SUFFIX = "_pgosc".freeze
+    INDEX_SUFFIX = "_pgosc"
     DROPPED_COLUMN_TYPE = :AT_DropColumn
     RENAMED_COLUMN_TYPE = :AT_RenameColumn
     LOCK_ATTEMPT = 4
@@ -15,28 +17,28 @@ module PgOnlineSchemaChange
         PgQuery.parse(query).tree.stmts.all? do |statement|
           statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt) || statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
         end
-      rescue PgQuery::ParseError => e
+      rescue PgQuery::ParseError
         false
       end
 
       def same_table?(query)
-        tables = PgQuery.parse(query).tree.stmts.map do |statement|
+        tables = PgQuery.parse(query).tree.stmts.filter_map do |statement|
           if statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt)
             statement.stmt.alter_table_stmt.relation.relname
           elsif statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
             statement.stmt.rename_stmt.relation.relname
           end
-        end.compact
+        end
 
         tables.uniq.count == 1
-      rescue PgQuery::ParseError => e
+      rescue PgQuery::ParseError
         false
       end
 
       def table(query)
-        from_rename_statement = PgQuery.parse(query).tree.stmts.map do |statement|
+        from_rename_statement = PgQuery.parse(query).tree.stmts.filter_map do |statement|
           statement.stmt.rename_stmt&.relation&.relname
-        end.compact[0]
+        end[0]
         PgQuery.parse(query).tables[0] || from_rename_statement
       end
 
@@ -48,7 +50,7 @@ module PgOnlineSchemaChange
         connection.async_exec("BEGIN;")
 
         result = connection.async_exec(query, &block)
-      rescue Exception
+      rescue Exception # rubocop:disable Lint/RescueException
         connection.cancel if connection.transaction_status != PG::PQTRANS_IDLE
         connection.block
         logger.info("Exception raised, rolling back query", { rollback: true, query: query })
@@ -144,11 +146,11 @@ module PgOnlineSchemaChange
         end
 
         references.map do |row|
-          if row["definition"].end_with?("NOT VALID")
-            add_statement = "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
-          else
-            add_statement = "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
-          end
+          add_statement = if row["definition"].end_with?("NOT VALID")
+                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+                          else
+                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+                          end
 
           drop_statement = "ALTER TABLE #{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
 
@@ -291,7 +293,7 @@ module PgOnlineSchemaChange
           client.connection.quote_ident(select_column)
         end
 
-        sql = <<~SQL
+        <<~SQL
           INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")})
           SELECT #{select_columns.join(", ")}
           FROM ONLY #{client.table}

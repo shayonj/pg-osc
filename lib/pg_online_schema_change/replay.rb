@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+# rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+
 module PgOnlineSchemaChange
   class Replay
     extend Helper
@@ -110,13 +114,15 @@ module PgOnlineSchemaChange
         Query.run(client.connection, to_be_replayed.join, reuse_trasaction)
 
         # Delete items from the audit now that are replayed
-        if to_be_deleted_rows.count >= 1
-          delete_query = <<~SQL
-            DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
-          SQL
-          Query.run(client.connection, delete_query, reuse_trasaction)
-        end
+        return unless to_be_deleted_rows.count >= 1
+
+        delete_query = <<~SQL
+          DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
+        SQL
+        Query.run(client.connection, delete_query, reuse_trasaction)
       end
     end
   end
 end
+
+# rubocop:enable Metrics/AbcSize, Metrics/MethodLength

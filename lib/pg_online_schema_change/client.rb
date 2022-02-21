@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "pg"
 
 module PgOnlineSchemaChange
@@ -16,7 +18,9 @@ module PgOnlineSchemaChange
       @drop = options.drop
       @kill_backends = options.kill_backends
       @wait_time_for_lock = options.wait_time_for_lock
+
       handle_copy_statement(options.copy_statement)
+      handle_validations
 
       @connection = PG.connect(
         dbname: @dbname,
@@ -26,15 +30,17 @@ module PgOnlineSchemaChange
         port: @port,
       )
 
-      raise Error, "Not a valid ALTER statement: #{@alter_statement}" unless Query.alter_statement?(@alter_statement)
-
-      unless Query.same_table?(@alter_statement)
-        raise Error "All statements should belong to the same table: #{@alter_statement}"
-      end
-
       @table = Query.table(@alter_statement)
 
       PgOnlineSchemaChange.logger.debug("Connection established")
+    end
+
+    def handle_validations
+      raise Error, "Not a valid ALTER statement: #{@alter_statement}" unless Query.alter_statement?(@alter_statement)
+
+      return if Query.same_table?(@alter_statement)
+
+      raise Error "All statements should belong to the same table: #{@alter_statement}"
     end
 
     def handle_copy_statement(statement)

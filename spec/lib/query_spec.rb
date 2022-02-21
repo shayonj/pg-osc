@@ -33,7 +33,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
   end
 
   describe ".same_table?" do
-    it "returns true" do
+    it "returns true with multiple statements" do
       query = <<~SQL
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
         ALTER TABLE books RENAME COLUMN \"email\" to \"new_email\";
@@ -42,7 +42,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(described_class.same_table?(query)).to eq(true)
     end
 
-    it "returns false" do
+    it "returns false with multiple statements" do
       query = <<~SQL
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
         ALTER TABLE cards RENAME COLUMN \"email\" to \"new_email\";
@@ -51,7 +51,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(described_class.same_table?(query)).to eq(false)
     end
 
-    it "returns true" do
+    it "returns true with multiple statements and a rename" do
       query = <<~SQL
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
         ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;
@@ -94,8 +94,12 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     let(:alter_query) { "ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey;" }
     let(:result) do
-      { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
-        "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" }
+      { "table_on" => "chapters",
+        "table_from" => "books",
+        "constraint_type" => "f",
+        "constraint_name" => "chapters_book_id_fkey",
+        "constraint_validated" => "t",
+        "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" }
     end
 
     before do
@@ -109,12 +113,13 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(client.connection).to receive(:async_exec).with("SELECT 'FooBar' as result").and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
+      rows = []
       described_class.run(client.connection, query) do |result|
-        expect(result.count).to eq(1)
-        result.each do |row|
-          expect(row).to eq({ "result" => "FooBar" })
-        end
+        rows = result.map { |r| r }
       end
+
+      expect(rows.count).to eq(1)
+      expect(rows[0]).to eq({ "result" => "FooBar" })
     end
 
     it "returns the alter query successfully" do
@@ -175,19 +180,33 @@ RSpec.describe PgOnlineSchemaChange::Query do
       described_class.run(client.connection, new_dummy_table_sql)
 
       result = [
-        { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 1,
+        { "column_name" => "\"user_id\"",
+          "type" => "integer",
+          "column_position" => 1,
           "column_name_regular" => "user_id" },
-        { "column_name" => "\"username\"", "type" => "character varying(50)", "column_position" => 2,
+        { "column_name" => "\"username\"",
+          "type" => "character varying(50)",
+          "column_position" => 2,
           "column_name_regular" => "username" },
-        { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 3,
+        { "column_name" => "\"seller_id\"",
+          "type" => "integer",
+          "column_position" => 3,
           "column_name_regular" => "seller_id" },
-        { "column_name" => "\"password\"", "type" => "character varying(50)", "column_position" => 4,
+        { "column_name" => "\"password\"",
+          "type" => "character varying(50)",
+          "column_position" => 4,
           "column_name_regular" => "password" },
-        { "column_name" => "\"email\"", "type" => "character varying(255)", "column_position" => 5,
+        { "column_name" => "\"email\"",
+          "type" => "character varying(255)",
+          "column_position" => 5,
           "column_name_regular" => "email" },
-        { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone", "column_position" => 6,
+        { "column_name" => "\"createdOn\"",
+          "type" => "timestamp without time zone",
+          "column_position" => 6,
           "column_name_regular" => "createdOn" },
-        { "column_name" => "\"last_login\"", "type" => "timestamp without time zone", "column_position" => 7,
+        { "column_name" => "\"last_login\"",
+          "type" => "timestamp without time zone",
+          "column_position" => 7,
           "column_name_regular" => "last_login" },
       ]
 
@@ -208,16 +227,36 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns all constraints" do
       result = [
-        { "table_on" => "sellers", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "sellers_pkey",
-          "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
-        { "table_on" => "books", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "books_pkey",
-          "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)" },
-        { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
-          "constraint_name" => "books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
-        { "table_on" => "chapters", "table_from" => "-", "constraint_type" => "p",
-          "constraint_name" => "chapters_pkey", "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
-        { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f",
-          "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
+        { "table_on" => "sellers",
+          "table_from" => "-",
+          "constraint_type" => "p",
+          "constraint_name" => "sellers_pkey",
+          "constraint_validated" => "t",
+          "definition" => "PRIMARY KEY (id)" },
+        { "table_on" => "books",
+          "table_from" => "-",
+          "constraint_type" => "p",
+          "constraint_name" => "books_pkey",
+          "constraint_validated" => "t",
+          "definition" => "PRIMARY KEY (user_id)" },
+        { "table_on" => "books",
+          "table_from" => "sellers",
+          "constraint_type" => "f",
+          "constraint_name" => "books_seller_id_fkey",
+          "constraint_validated" => "t",
+          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+        { "table_on" => "chapters",
+          "table_from" => "-",
+          "constraint_type" => "p",
+          "constraint_name" => "chapters_pkey",
+          "constraint_validated" => "t",
+          "definition" => "PRIMARY KEY (id)" },
+        { "table_on" => "chapters",
+          "table_from" => "books",
+          "constraint_type" => "f",
+          "constraint_name" => "chapters_book_id_fkey",
+          "constraint_validated" => "t",
+          "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
       ]
 
       expect(described_class.get_all_constraints_for(client)).to eq(result)
@@ -237,8 +276,12 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns all constraints" do
       result = [
-        { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f",
-          "constraint_name" => "books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+        { "table_on" => "books",
+          "table_from" => "sellers",
+          "constraint_type" => "f",
+          "constraint_name" => "books_seller_id_fkey",
+          "constraint_validated" => "t",
+          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
       ]
       expect(described_class.get_foreign_keys_for(client, "books")).to eq(result)
     end
@@ -257,8 +300,12 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns all constraints" do
       result = [
-        { "constraint_name" => "books_pkey", "constraint_type" => "p", "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)",
-          "table_from" => "-", "table_on" => "books" },
+        { "constraint_name" => "books_pkey",
+          "constraint_type" => "p",
+          "constraint_validated" => "t",
+          "definition" => "PRIMARY KEY (user_id)",
+          "table_from" => "-",
+          "table_on" => "books" },
       ]
       expect(described_class.get_primary_keys_for(client, "books")).to eq(result)
     end
@@ -381,10 +428,10 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
       result = described_class.get_indexes_for(client, "books")
       expect(result).to eq([
-                             "CREATE UNIQUE INDEX books_pkey ON #{client.schema}.books USING btree (user_id)",
-                             "CREATE UNIQUE INDEX books_username_key ON #{client.schema}.books USING btree (username)",
-                             "CREATE UNIQUE INDEX books_email_key ON #{client.schema}.books USING btree (email)",
-                           ])
+        "CREATE UNIQUE INDEX books_pkey ON #{client.schema}.books USING btree (user_id)",
+        "CREATE UNIQUE INDEX books_username_key ON #{client.schema}.books USING btree (username)",
+        "CREATE UNIQUE INDEX books_email_key ON #{client.schema}.books USING btree (email)",
+      ])
     end
   end
 
@@ -463,11 +510,11 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
       result = described_class.renamed_columns(client)
       expect(result).to eq([
-                             {
-                               old_name: "email",
-                               new_name: "new_email",
-                             },
-                           ])
+        {
+          old_name: "email",
+          new_name: "new_email",
+        },
+      ])
     end
 
     it "returns all columns being renamed" do
@@ -478,15 +525,15 @@ RSpec.describe PgOnlineSchemaChange::Query do
       client = PgOnlineSchemaChange::Client.new(client_options)
       result = described_class.renamed_columns(client)
       expect(result).to eq([
-                             {
-                               old_name: "email",
-                               new_name: "new_email",
-                             },
-                             {
-                               old_name: "foobar",
-                               new_name: "new_foobar",
-                             },
-                           ])
+        {
+          old_name: "email",
+          new_name: "new_email",
+        },
+        {
+          old_name: "foobar",
+          new_name: "new_foobar",
+        },
+      ])
     end
 
     it "returns no being renamed" do

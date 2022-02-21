@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe PgOnlineSchemaChange::Replay do
   describe ".play!" do
     describe "when alter adds a column" do
