@@ -23,6 +23,7 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
   * [Multiple ALTER statements](#multiple-alter-statements)
   * [Kill other backends after 5s](#kill-other-backends-after-5s)
   * [Backfill data](#backfill-data)
+  * [Running using Docker](#running-using-docker)
 - [Caveats](#caveats)
 - [Development](#development)
 - [Releasing](#releasing)
@@ -47,6 +48,11 @@ Or install it yourself as:
 
 This will include all dependencies accordingly as well. Make sure the following requirements are satisfied.
 
+Or via Docker:
+
+    docker pull shayonj/pg-osc:latest
+
+https://hub.docker.com/r/shayonj/pg-osc
 ## Requirements
 - PostgreSQL 9.6 and later
 - Ruby 2.6 and later
@@ -181,6 +187,19 @@ pg-online-schema-change perform \
   --copy-statement "/src/query.sql" \
   --drop
 ```
+
+### Running using Docker
+
+```
+docker run --network host -it --rm shayonj/pg-osc:latest \
+    pg-online-schema-change perform \
+    --alter-statement 'ALTER TABLE books ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE; ALTER TABLE books RENAME COLUMN email TO new_email;' \
+    --dbname "postgres" \
+    --host "localhost" \
+    --username "jamesbond" \
+    --password "" \
+    --drop
+```
 ## Caveats
 - A primary key should exist on the table; without it, `pg-osc` will raise an exception
 	- This is because - currently there is no other way to uniquely identify rows during replay.
@@ -216,10 +235,8 @@ To install this gem onto your local machine, run `bundle exec rake install`.
 ## Releasing
 
 - Bump version in `version.rb`
-- `git tag v0.1.0`
-- `git push origin --tags`
-- `gem build pg_online_schema_change.gemspec`
-- `gem push pg_online_schema_change-0.1.0.gem`
+- Commit
+- `./scripts/release.sh 0.2.0`
 - Update `CHANGELOG.md`
 - Create a new release - https://github.com/shayonj/pg-osc/releases/new
 
