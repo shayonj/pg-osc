@@ -36,10 +36,10 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Add an entry for the trigger
         query = <<~SQL
           INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-          VALUES(10, 1, 'jamesbond10 "''i am bond 🚀''"', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+          VALUES(10, 1, 'jamesbond10 "''i am bond 🚀''"', '0010', 'james10@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
 
           INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-          VALUES(11, 1, 'jamesbond11 "''i am bond 🚀''"', '0011', 'james11@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+          VALUES(11, 1, 'jamesbond11 "''i am bond 🚀''"', '0011', 'james11@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -239,7 +239,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Add an entry for the trigger
         query = <<~SQL
           INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -384,7 +384,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         # Add an entry for the trigger
         query = <<~SQL
           INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+          VALUES(10, 1, 'jamesbond10', '0010', 'james10@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
