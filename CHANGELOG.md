@@ -1,3 +1,11 @@
+## [0.4.0] - 2022-02-22
+* Lint sourcecode, setup Rubocop proper and Lint in CI by @shayonj in https://github.com/shayonj/pg-osc/pull/46
+* Uniquely identify operation_type column by @shayonj in https://github.com/shayonj/pg-osc/pull/50
+* Introduce primary key on audit table for ordered reads by @shayonj in https://github.com/shayonj/pg-osc/pull/49
+  - This addresses an edge case with replay.
+* Uniquely identify trigger_time column by @shayonj in https://github.com/shayonj/pg-osc/pull/51
+* Abstract assertions into a helper function by @shayonj in https://github.com/shayonj/pg-osc/pull/52
+
 ## [0.3.0] - 2022-02-21
 
 - Explicitly call dependencies and bump dependencies by @shayonj https://github.com/shayonj/pg-osc/pull/44
