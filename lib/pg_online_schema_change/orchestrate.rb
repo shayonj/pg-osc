@@ -114,13 +114,13 @@ module PgOnlineSchemaChange
           $$
           BEGIN
             IF ( TG_OP = 'INSERT') THEN
-              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'INSERT', now(), NEW.* ;
+              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'INSERT', clock_timestamp(), NEW.* ;
               RETURN NEW;
             ELSIF ( TG_OP = 'UPDATE') THEN
-              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'UPDATE', now(),  NEW.* ;
+              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'UPDATE', clock_timestamp(),  NEW.* ;
               RETURN NEW;
             ELSIF ( TG_OP = 'DELETE') THEN
-              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'DELETE', now(), OLD.* ;
+              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'DELETE', clock_timestamp(), OLD.* ;
               RETURN NEW;
             END IF;
           END;

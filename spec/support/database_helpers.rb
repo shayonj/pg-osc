@@ -70,13 +70,13 @@ module DatabaseHelpers
     client ||= PgOnlineSchemaChange::Client.new(client_options)
     query = <<~SQL
       INSERT INTO "#{schema}"."sellers"("name", "createdOn", "last_login")
-      VALUES('local shop', 'now()', 'now()');
+      VALUES('local shop', clock_timestamp(), clock_timestamp());
 
       INSERT INTO "#{schema}"."books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
       VALUES
-        (2, 1, 'jamesbond2', '007', 'james1@bond.com', 'now()', 'now()'),
-        (3, 1, 'jamesbond3', '008', 'james2@bond.com', 'now()', 'now()'),
-        (4, 1, 'jamesbond4', '009', 'james3@bond.com', 'now()', 'now()');
+        (2, 1, 'jamesbond2', '007', 'james1@bond.com', clock_timestamp(), clock_timestamp()),
+        (3, 1, 'jamesbond3', '008', 'james2@bond.com', clock_timestamp(), clock_timestamp()),
+        (4, 1, 'jamesbond4', '009', 'james3@bond.com', clock_timestamp(), clock_timestamp());
     SQL
     PgOnlineSchemaChange::Query.run(client.connection, query)
   end

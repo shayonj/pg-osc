@@ -110,13 +110,13 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         $$
         BEGIN
           IF ( TG_OP = 'INSERT') THEN
-            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'INSERT', now(), NEW.* ;
+            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'INSERT', clock_timestamp(), NEW.* ;
             RETURN NEW;
           ELSIF ( TG_OP = 'UPDATE') THEN
-            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'UPDATE', now(),  NEW.* ;
+            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'UPDATE', clock_timestamp(),  NEW.* ;
             RETURN NEW;
           ELSIF ( TG_OP = 'DELETE') THEN
-            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'DELETE', now(), OLD.* ;
+            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'DELETE', clock_timestamp(), OLD.* ;
             RETURN NEW;
           END IF;
         END;
@@ -181,10 +181,10 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.setup_trigger!
       query = <<~SQL
         INSERT INTO "sellers"("name", "createdOn", "last_login")
-        VALUES('local shop', 'now()', 'now()');
+        VALUES('local shop', clock_timestamp(), clock_timestamp());
 
         INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
 
         UPDATE books SET username = 'bondjames'
         WHERE user_id='1';
@@ -400,7 +400,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       # to audit table
       query = <<~SQL
         INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', 'now()', 'now()') RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
       SQL
       PgOnlineSchemaChange::Query.run(client.connection, query)
 
