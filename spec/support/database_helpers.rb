@@ -85,4 +85,18 @@ module DatabaseHelpers
     client ||= PgOnlineSchemaChange::Client.new(client_options)
     PgOnlineSchemaChange::Query.run(client.connection, "DROP SCHEMA IF EXISTS #{schema} CASCADE;")
   end
+
+  def expect_query_result(connection:, query:, assertions:)
+    rows = []
+    PgOnlineSchemaChange::Query.run(connection, query) do |result|
+      rows = result.map { |row| row }
+    end
+
+    assertions.each do |obj|
+      expect(rows.count).to eq(obj[:count])
+      expect(rows).to include(include(obj[:data][0])) if obj[:data]
+    end
+
+    rows
+  end
 end

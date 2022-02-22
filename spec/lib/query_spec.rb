@@ -113,13 +113,12 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(client.connection).to receive(:async_exec).with("SELECT 'FooBar' as result").and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
-      rows = []
-      described_class.run(client.connection, query) do |result|
-        rows = result.map { |r| r }
-      end
-
-      expect(rows.count).to eq(1)
-      expect(rows[0]).to eq({ "result" => "FooBar" })
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 1,
+          data: [{ "result" => "FooBar" }],
+        },
+      ])
     end
 
     it "returns the alter query successfully" do
