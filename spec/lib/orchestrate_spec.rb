@@ -78,7 +78,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(columns).to eq([
         { "column_name" => "\"#{described_class.audit_table_pk}\"", "type" => "integer", "column_position" => 1, "column_name_regular" => described_class.audit_table_pk.to_s },
         { "column_name" => "\"#{described_class.operation_type_column}\"", "type" => "text", "column_position" => 2, "column_name_regular" => described_class.operation_type_column.to_s },
-        { "column_name" => "\"trigger_time\"", "type" => "timestamp without time zone", "column_position" => 3, "column_name_regular" => "trigger_time" },
+        { "column_name" => "\"#{described_class.trigger_time_column}\"", "type" => "timestamp without time zone", "column_position" => 3, "column_name_regular" => described_class.trigger_time_column.to_s },
         { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 4, "column_name_regular" => "user_id" },
         { "column_name" => "\"username\"", "type" => "character varying(50)", "column_position" => 5, "column_name_regular" => "username" },
         { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 6, "column_name_regular" => "seller_id" },
@@ -207,7 +207,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       insert = rows.detect { |r| r[described_class.operation_type_column] == "INSERT" }
       expect(insert).to include(
         described_class.operation_type_column => "INSERT",
-        "trigger_time" => be_instance_of(String),
+        described_class.trigger_time_column => be_instance_of(String),
         "seller_id" => "1",
         "username" => "jamesbond",
         "password" => "007",
@@ -219,7 +219,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       update = rows.detect { |r| r[described_class.operation_type_column] == "UPDATE" }
       expect(update).to include(
         described_class.operation_type_column => "UPDATE",
-        "trigger_time" => be_instance_of(String),
+        described_class.trigger_time_column => be_instance_of(String),
         "seller_id" => "1",
         "username" => "bondjames",
         "password" => "007",
@@ -231,7 +231,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       delete = rows.detect { |r| r[described_class.operation_type_column] == "DELETE" }
       expect(delete).to include(
         described_class.operation_type_column => "DELETE",
-        "trigger_time" => be_instance_of(String),
+        described_class.trigger_time_column => be_instance_of(String),
         "seller_id" => "1",
         "username" => "bondjames",
         "password" => "007",

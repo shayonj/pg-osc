@@ -38,7 +38,7 @@ module PgOnlineSchemaChange
       end
 
       def reserved_columns
-        @reserved_columns ||= ["trigger_time", operation_type_column, audit_table_pk]
+        @reserved_columns ||= [trigger_time_column, operation_type_column, audit_table_pk]
       end
 
       def play!(rows, reuse_trasaction = false)
