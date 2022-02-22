@@ -23,19 +23,19 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       described_class.setup!(client_options)
 
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, "SHOW statement_timeout;") do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(1)
-      expect(rows[0]).to eq({ "statement_timeout" => "0" })
+      expect_query_result(connection: client.connection, query: "SHOW statement_timeout;", assertions: [
+        {
+          count: 1,
+          data: [{ "statement_timeout" => "0" }],
+        },
+      ])
 
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, "SHOW client_min_messages;") do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(1)
-      expect(rows[0]).to eq({ "client_min_messages" => "warning" })
+      expect_query_result(connection: client.connection, query: "SHOW client_min_messages;", assertions: [
+        {
+          count: 1,
+          data: [{ "client_min_messages" => "warning" }],
+        },
+      ])
 
       RSpec::Mocks.space.reset_all
 
@@ -46,12 +46,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
           AND specific_schema=\'#{client.schema}\'
           AND routine_name='fix_serial_sequence';
       SQL
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, functions) do |result|
-        rows = result.map { |row| row }
-      end
-
-      expect(rows.count).to eq(1)
+      expect_query_result(connection: client.connection, query: functions, assertions: [
+        { count: 1 },
+      ])
     end
   end
 
@@ -152,15 +149,19 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         select p.oid::regprocedure from pg_proc p
         join pg_namespace n
         on p.pronamespace = n.oid
-        where n.nspname not in ('pg_catalog', 'information_schema');
+        where n.nspname = 'test_schema';
       SQL
 
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |row| row }
-      end
-      row = rows.detect { |r| r["oid"] == "primary_to_audit_table_trigger()" }
-      expect(row).to eq({ "oid" => "primary_to_audit_table_trigger()" })
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 3,
+          data: [
+            { "oid" => "fix_serial_sequence(regclass,text)" },
+            { "oid" => "create_table_all(text,text)" },
+            { "oid" => "primary_to_audit_table_trigger()" },
+          ],
+        },
+      ])
 
       query = <<~SQL
         select tgname
@@ -168,13 +169,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         where not tgisinternal
         and tgrelid = \'#{client.table}\'::regclass::oid;
       SQL
-
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |r| r }
-      end
-      expect(rows.count).to eq(1)
-      expect(rows[0]).to eq("tgname" => "primary_to_audit_table_trigger")
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 1,
+          data: ["tgname" => "primary_to_audit_table_trigger"],
+        },
+      ])
     end
 
     it "adds entries to the audit table for INSERT/UPDATE/DELETE" do
@@ -193,52 +193,50 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       SQL
 
       PgOnlineSchemaChange::Query.run(client.connection, query)
-      query = <<~SQL
-        select * from #{described_class.audit_table}
-        where #{described_class.operation_type_column} IN ('INSERT', 'UPDATE', 'DELETE')
-      SQL
-
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(3)
-
-      insert = rows.detect { |r| r[described_class.operation_type_column] == "INSERT" }
-      expect(insert).to include(
-        described_class.operation_type_column => "INSERT",
-        described_class.trigger_time_column => be_instance_of(String),
-        "seller_id" => "1",
-        "username" => "jamesbond",
-        "password" => "007",
-        "email" => "james@bond.com",
-        "createdOn" => be_instance_of(String),
-        "last_login" => be_instance_of(String),
-      )
-
-      update = rows.detect { |r| r[described_class.operation_type_column] == "UPDATE" }
-      expect(update).to include(
-        described_class.operation_type_column => "UPDATE",
-        described_class.trigger_time_column => be_instance_of(String),
-        "seller_id" => "1",
-        "username" => "bondjames",
-        "password" => "007",
-        "email" => "james@bond.com",
-        "createdOn" => be_instance_of(String),
-        "last_login" => be_instance_of(String),
-      )
-
-      delete = rows.detect { |r| r[described_class.operation_type_column] == "DELETE" }
-      expect(delete).to include(
-        described_class.operation_type_column => "DELETE",
-        described_class.trigger_time_column => be_instance_of(String),
-        "seller_id" => "1",
-        "username" => "bondjames",
-        "password" => "007",
-        "email" => "james@bond.com",
-        "createdOn" => be_instance_of(String),
-        "last_login" => be_instance_of(String),
-      )
+      query = "select * from #{described_class.audit_table} where #{described_class.operation_type_column} IN ('INSERT', 'UPDATE', 'DELETE')"
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 3,
+          data: [
+            {
+              described_class.audit_table_pk => "1",
+              "createdOn" => be_instance_of(String),
+              "email" => "james@bond.com",
+              "last_login" => be_instance_of(String),
+              described_class.operation_type_column => "INSERT",
+              "password" => "007",
+              "seller_id" => "1",
+              described_class.trigger_time_column => be_instance_of(String),
+              "user_id" => "1",
+              "username" => "jamesbond",
+            },
+            {
+              described_class.audit_table_pk => "2",
+              "createdOn" => be_instance_of(String),
+              "email" => "james@bond.com",
+              "last_login" => be_instance_of(String),
+              described_class.operation_type_column => "UPDATE",
+              "password" => "007",
+              "seller_id" => "1",
+              described_class.trigger_time_column => be_instance_of(String),
+              "user_id" => "1",
+              "username" => "bondjames",
+            },
+            {
+              described_class.audit_table_pk => "3",
+              "createdOn" => be_instance_of(String),
+              "email" => "james@bond.com",
+              "last_login" => be_instance_of(String),
+              described_class.operation_type_column => "DELETE",
+              "password" => "007",
+              "seller_id" => "1",
+              described_class.trigger_time_column => be_instance_of(String),
+              "user_id" => "1",
+              "username" => "bondjames",
+            },
+          ],
+        },
+      ])
     end
   end
 
@@ -324,13 +322,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       query = <<~SQL
         select count(*) from #{described_class.shadow_table}
       SQL
-
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |r| r }
-      end
-      expect(rows.count).to eq(1)
-      expect(rows[0]).to eq({ "count" => "0" })
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 1,
+          data: [{ "count" => "0" }],
+        },
+      ])
     end
   end
 
@@ -369,13 +366,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       query = <<~SQL
         select reloptions from pg_class where relname = \'#{described_class.audit_table}\';
       SQL
-      rows = []
-
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |r| r }
-      end
-      expect(rows.count).to eq(1)
-      expect(rows[0]).to eq({ "reloptions" => "{autovacuum_enabled=false}" })
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 1,
+          data: [{ "reloptions" => "{autovacuum_enabled=false}" }],
+        },
+      ])
     end
   end
 
@@ -407,19 +403,15 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       query = <<~SQL
         select * from #{described_class.audit_table};
       SQL
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(1)
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        { count: 1 },
+      ])
 
       described_class.copy_data!
 
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(0)
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        { count: 0 },
+      ])
     end
 
     it "successfully" do
@@ -430,20 +422,43 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       query = <<~SQL
         select * from #{described_class.shadow_table};
       SQL
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-        rows = result.map { |row| row }
-      end
-
-      expect(rows.count).to eq(3)
-      expect(rows.map { |r| r["user_id"] }).to eq(%w[2 3 4])
-      expect(rows.map { |r| r["seller_id"] }).to eq(%w[1 1 1])
-      expect(rows.map { |r| r["password"] }).to eq(%w[007 008 009])
-      expect(rows.map do |r|
-        r["email"]
-      end).to eq(["james1@bond.com", "james2@bond.com", "james3@bond.com"])
-      expect(rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
-      expect(rows.all? { |r| !r["last_login"].nil? }).to eq(true)
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 3,
+          data: [
+            {
+              "createdOn" => be_instance_of(String),
+              "email" => "james1@bond.com",
+              "last_login" => be_instance_of(String),
+              "password" => "007",
+              "purchased" => "f",
+              "seller_id" => "1",
+              "user_id" => "2",
+              "username" => "jamesbond2",
+            },
+            {
+              "createdOn" => be_instance_of(String),
+              "email" => "james2@bond.com",
+              "last_login" => be_instance_of(String),
+              "password" => "008",
+              "purchased" => "f",
+              "seller_id" => "1",
+              "user_id" => "3",
+              "username" => "jamesbond3",
+            },
+            {
+              "createdOn" => be_instance_of(String),
+              "email" => "james3@bond.com",
+              "last_login" => be_instance_of(String),
+              "password" => "009",
+              "purchased" => "f",
+              "seller_id" => "1",
+              "user_id" => "4",
+              "username" => "jamesbond4",
+            },
+          ],
+        },
+      ])
     end
 
     describe "from copy_statement" do
@@ -463,20 +478,43 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         query = <<~SQL
           select * from #{described_class.shadow_table};
         SQL
-        rows = []
-        PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-          rows = result.map { |row| row }
-        end
-
-        expect(rows.count).to eq(3)
-        expect(rows.map { |r| r["user_id"] }).to eq(%w[2 3 4])
-        expect(rows.map { |r| r["seller_id"] }).to eq(%w[1 1 1])
-        expect(rows.map { |r| r["password"] }).to eq(%w[007 008 009])
-        expect(rows.map do |r|
-          r["email"]
-        end).to eq(["james1@bond.com", "james2@bond.com", "james3@bond.com"])
-        expect(rows.all? { |r| !r["createdOn"].nil? }).to eq(true)
-        expect(rows.all? { |r| !r["last_login"].nil? }).to eq(true)
+        expect_query_result(connection: client.connection, query: query, assertions: [
+          {
+            count: 3,
+            data: [
+              {
+                "createdOn" => be_instance_of(String),
+                "email" => "james1@bond.com",
+                "last_login" => be_instance_of(String),
+                "password" => "007",
+                "purchased" => "f",
+                "seller_id" => "1",
+                "user_id" => "2",
+                "username" => "jamesbond2",
+              },
+              {
+                "createdOn" => be_instance_of(String),
+                "email" => "james2@bond.com",
+                "last_login" => be_instance_of(String),
+                "password" => "008",
+                "purchased" => "f",
+                "seller_id" => "1",
+                "user_id" => "3",
+                "username" => "jamesbond3",
+              },
+              {
+                "createdOn" => be_instance_of(String),
+                "email" => "james3@bond.com",
+                "last_login" => be_instance_of(String),
+                "password" => "009",
+                "purchased" => "f",
+                "seller_id" => "1",
+                "user_id" => "4",
+                "username" => "jamesbond4",
+              },
+            ],
+          },
+        ])
       end
     end
 
@@ -497,12 +535,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         query = <<~SQL
           select * from #{described_class.shadow_table};
         SQL
-        rows = []
-        PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-          rows = result.map { |row| row }
-        end
+        rows = expect_query_result(connection: client.connection, query: query, assertions: [
+          {
+            count: 3,
+          },
+        ])
 
-        expect(rows.count).to eq(3)
         expect(rows.filter_map { |r| r["user_id"] }).to eq([])
       end
     end
@@ -524,14 +562,41 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         query = <<~SQL
           select * from #{described_class.shadow_table};
         SQL
-        rows = []
-        PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
-          rows = result.map { |row| row }
-        end
-
-        expect(rows.count).to eq(3)
+        rows = expect_query_result(connection: client.connection, query: query, assertions: [
+          {
+            count: 3,
+            data: [
+              {
+                "createdOn" => be_instance_of(String),
+                "email" => "james1@bond.com",
+                "last_login" => be_instance_of(String),
+                "new_user_id" => "2",
+                "password" => "007",
+                "seller_id" => "1",
+                "username" => "jamesbond2",
+              },
+              {
+                "createdOn" => be_instance_of(String),
+                "email" => "james2@bond.com",
+                "last_login" => be_instance_of(String),
+                "new_user_id" => "3",
+                "password" => "008",
+                "seller_id" => "1",
+                "username" => "jamesbond3",
+              },
+              {
+                "createdOn" => be_instance_of(String),
+                "email" => "james3@bond.com",
+                "last_login" => be_instance_of(String),
+                "new_user_id" => "4",
+                "password" => "009",
+                "seller_id" => "1",
+                "username" => "jamesbond4",
+              },
+            ],
+          },
+        ])
         expect(rows.filter_map { |r| r["user_id"] }).to eq([])
-        expect(rows.map { |r| r["new_user_id"] }).to eq(%w[2 3 4])
       end
     end
   end
@@ -761,21 +826,17 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       select_query = <<~SQL
         SELECT * FROM #{described_class.old_primary_table};
       SQL
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(3)
+      expect_query_result(connection: client.connection, query: select_query, assertions: [
+        { count: 3 },
+      ])
 
       # Fetch rows from the renamed table
       select_query = <<~SQL
         SELECT * FROM books;
       SQL
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, select_query) do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(3)
+      expect_query_result(connection: client.connection, query: select_query, assertions: [
+        { count: 3 },
+      ])
 
       # confirm indexes on newly renamed table
       columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
@@ -785,21 +846,23 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "sucessfully drops the trigger" do
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';") do |result|
-        rows = result.map { |row| row }
-      end
-
-      expect(rows.count).to eq(3)
-      expect(rows.map { |n| n["trigger_name"] }.uniq).to eq(["primary_to_audit_table_trigger"])
-
+      query = "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';"
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        {
+          count: 3,
+          data: [
+            { "trigger_name" => "primary_to_audit_table_trigger" },
+            { "trigger_name" => "primary_to_audit_table_trigger" },
+            { "trigger_name" => "primary_to_audit_table_trigger" },
+          ],
+        },
+      ])
       described_class.swap!
 
-      rows = []
-      PgOnlineSchemaChange::Query.run(client.connection, "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';") do |result|
-        rows = result.map { |row| row }
-      end
-      expect(rows.count).to eq(0)
+      query = "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';"
+      expect_query_result(connection: client.connection, query: query, assertions: [
+        { count: 0 },
+      ])
     end
 
     it "closes transaction when it couldn't acquire lock" do
