@@ -23,12 +23,17 @@ module PgOnlineSchemaChange
         Query.run(client.connection, FUNC_FIX_SERIAL_SEQUENCE)
         Query.run(client.connection, FUNC_CREATE_TABLE_ALL)
 
+        setup_store
+      end
+
+      def setup_store
         # Set this early on to ensure their creation and cleanup (unexpected)
         # happens at all times. IOW, the calls from Store.get always return
         # the same value.
         Store.set(:old_primary_table, "pgosc_op_table_#{client.table}")
         Store.set(:audit_table, "pgosc_at_#{client.table}_#{pgosc_identifier}")
-        Store.set(:operation_type_column, "opt_#{client.table}_#{pgosc_identifier}")
+        Store.set(:operation_type_column, "operation_type_#{pgosc_identifier}")
+        Store.set(:trigger_time_column, "trigger_time_#{pgosc_identifier}")
         Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
         Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table}_#{pgosc_identifier}")
@@ -90,7 +95,7 @@ module PgOnlineSchemaChange
         logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
-          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, trigger_time timestamp, LIKE #{client.table});
+          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, #{trigger_time_column} timestamp, LIKE #{client.table});
         SQL
 
         Query.run(client.connection, sql)
