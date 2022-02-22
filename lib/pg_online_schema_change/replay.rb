@@ -9,7 +9,6 @@ module PgOnlineSchemaChange
     class << self
       PULL_BATCH_COUNT = 1000
       DELTA_COUNT = 20
-      RESERVED_COLUMNS = %w[operation_type trigger_time].freeze
 
       # This, picks PULL_BATCH_COUNT rows by primary key from audit_table,
       # replays it on the shadow_table. Once the batch is done,
@@ -38,6 +37,10 @@ module PgOnlineSchemaChange
         rows
       end
 
+      def reserved_columns
+        @reserved_columns ||= ["trigger_time", operation_type_column]
+      end
+
       def play!(rows, reuse_trasaction = false)
         logger.info("Replaying rows, count: #{rows.size}")
 
@@ -48,7 +51,7 @@ module PgOnlineSchemaChange
 
           # Remove audit table cols, since we will be
           # re-mapping them for inserts and updates
-          RESERVED_COLUMNS.each do |col|
+          reserved_columns.each do |col|
             new_row.delete(col)
           end
 
@@ -77,7 +80,7 @@ module PgOnlineSchemaChange
             client.connection.escape_string(value)
           end
 
-          case row["operation_type"]
+          case row[operation_type_column]
           when "INSERT"
             values = new_row.map { |_, val| "'#{val}'" }.join(",")
 

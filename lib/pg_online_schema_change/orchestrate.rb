@@ -27,8 +27,9 @@ module PgOnlineSchemaChange
         # happens at all times. IOW, the calls from Store.get always return
         # the same value.
         Store.set(:old_primary_table, "pgosc_op_table_#{client.table}")
-        Store.set(:audit_table, "pgosc_at_#{client.table}_#{random_string}")
-        Store.set(:shadow_table, "pgosc_st_#{client.table}_#{random_string}")
+        Store.set(:audit_table, "pgosc_at_#{client.table}_#{pgosc_identifier}")
+        Store.set(:operation_type_column, "opt_#{client.table}_#{pgosc_identifier}")
+        Store.set(:shadow_table, "pgosc_st_#{client.table}_#{pgosc_identifier}")
       end
 
       def run!(options)
@@ -87,7 +88,7 @@ module PgOnlineSchemaChange
         logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
-          CREATE TABLE #{audit_table} (operation_type text, trigger_time timestamp, LIKE #{client.table});
+          CREATE TABLE #{audit_table} (#{operation_type_column} text, trigger_time timestamp, LIKE #{client.table});
         SQL
 
         Query.run(client.connection, sql)
@@ -275,8 +276,8 @@ module PgOnlineSchemaChange
 
       private
 
-      def random_string
-        @random_string ||= SecureRandom.hex(3)
+      def pgosc_identifier
+        @pgosc_identifier ||= SecureRandom.hex(3)
       end
     end
   end
