@@ -28,7 +28,7 @@ module PgOnlineSchemaChange
 
       def rows_to_play(reuse_trasaction = false)
         select_query = <<~SQL
-          SELECT * FROM #{audit_table} ORDER BY #{primary_key} LIMIT #{PULL_BATCH_COUNT};
+          SELECT * FROM #{audit_table} ORDER BY #{audit_table_pk} LIMIT #{PULL_BATCH_COUNT};
         SQL
 
         rows = []
@@ -38,7 +38,7 @@ module PgOnlineSchemaChange
       end
 
       def reserved_columns
-        @reserved_columns ||= ["trigger_time", operation_type_column]
+        @reserved_columns ||= ["trigger_time", operation_type_column, audit_table_pk]
       end
 
       def play!(rows, reuse_trasaction = false)

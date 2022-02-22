@@ -29,6 +29,8 @@ module PgOnlineSchemaChange
         Store.set(:old_primary_table, "pgosc_op_table_#{client.table}")
         Store.set(:audit_table, "pgosc_at_#{client.table}_#{pgosc_identifier}")
         Store.set(:operation_type_column, "opt_#{client.table}_#{pgosc_identifier}")
+        Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
+        Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table}_#{pgosc_identifier}")
       end
 
@@ -88,7 +90,7 @@ module PgOnlineSchemaChange
         logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
-          CREATE TABLE #{audit_table} (#{operation_type_column} text, trigger_time timestamp, LIKE #{client.table});
+          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, trigger_time timestamp, LIKE #{client.table});
         SQL
 
         Query.run(client.connection, sql)
@@ -112,13 +114,13 @@ module PgOnlineSchemaChange
           $$
           BEGIN
             IF ( TG_OP = 'INSERT') THEN
-              INSERT INTO \"#{audit_table}\" select 'INSERT', now(), NEW.* ;
+              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'INSERT', now(), NEW.* ;
               RETURN NEW;
             ELSIF ( TG_OP = 'UPDATE') THEN
-              INSERT INTO \"#{audit_table}\" select 'UPDATE', now(),  NEW.* ;
+              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'UPDATE', now(),  NEW.* ;
               RETURN NEW;
             ELSIF ( TG_OP = 'DELETE') THEN
-              INSERT INTO \"#{audit_table}\" select 'DELETE', now(), OLD.* ;
+              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'DELETE', now(), OLD.* ;
               RETURN NEW;
             END IF;
           END;

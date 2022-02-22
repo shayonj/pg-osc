@@ -76,42 +76,16 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       columns = PgOnlineSchemaChange::Query.table_columns(client, described_class.audit_table.to_s)
 
       expect(columns).to eq([
-        { "column_name" => "\"#{described_class.operation_type_column}\"",
-          "type" => "text",
-          "column_position" => 1,
-          "column_name_regular" => described_class.operation_type_column },
-        { "column_name" => "\"trigger_time\"",
-          "type" => "timestamp without time zone",
-          "column_position" => 2,
-          "column_name_regular" => "trigger_time" },
-        { "column_name" => "\"user_id\"",
-          "type" => "integer",
-          "column_position" => 3,
-          "column_name_regular" => "user_id" },
-        { "column_name" => "\"username\"",
-          "type" => "character varying(50)",
-          "column_position" => 4,
-          "column_name_regular" => "username" },
-        { "column_name" => "\"seller_id\"",
-          "type" => "integer",
-          "column_position" => 5,
-          "column_name_regular" => "seller_id" },
-        { "column_name" => "\"password\"",
-          "type" => "character varying(50)",
-          "column_position" => 6,
-          "column_name_regular" => "password" },
-        { "column_name" => "\"email\"",
-          "type" => "character varying(255)",
-          "column_position" => 7,
-          "column_name_regular" => "email" },
-        { "column_name" => "\"createdOn\"",
-          "type" => "timestamp without time zone",
-          "column_position" => 8,
-          "column_name_regular" => "createdOn" },
-        { "column_name" => "\"last_login\"",
-          "type" => "timestamp without time zone",
-          "column_position" => 9,
-          "column_name_regular" => "last_login" },
+        { "column_name" => "\"#{described_class.audit_table_pk}\"", "type" => "integer", "column_position" => 1, "column_name_regular" => described_class.audit_table_pk.to_s },
+        { "column_name" => "\"#{described_class.operation_type_column}\"", "type" => "text", "column_position" => 2, "column_name_regular" => described_class.operation_type_column.to_s },
+        { "column_name" => "\"trigger_time\"", "type" => "timestamp without time zone", "column_position" => 3, "column_name_regular" => "trigger_time" },
+        { "column_name" => "\"user_id\"", "type" => "integer", "column_position" => 4, "column_name_regular" => "user_id" },
+        { "column_name" => "\"username\"", "type" => "character varying(50)", "column_position" => 5, "column_name_regular" => "username" },
+        { "column_name" => "\"seller_id\"", "type" => "integer", "column_position" => 6, "column_name_regular" => "seller_id" },
+        { "column_name" => "\"password\"", "type" => "character varying(50)", "column_position" => 7, "column_name_regular" => "password" },
+        { "column_name" => "\"email\"", "type" => "character varying(255)", "column_position" => 8, "column_name_regular" => "email" },
+        { "column_name" => "\"createdOn\"", "type" => "timestamp without time zone", "column_position" => 9, "column_name_regular" => "createdOn" },
+        { "column_name" => "\"last_login\"", "type" => "timestamp without time zone", "column_position" => 10, "column_name_regular" => "last_login" },
       ])
     end
   end
@@ -136,13 +110,13 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         $$
         BEGIN
           IF ( TG_OP = 'INSERT') THEN
-            INSERT INTO "#{described_class.audit_table}" select 'INSERT', now(), NEW.* ;
+            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'INSERT', now(), NEW.* ;
             RETURN NEW;
           ELSIF ( TG_OP = 'UPDATE') THEN
-            INSERT INTO "#{described_class.audit_table}" select 'UPDATE', now(),  NEW.* ;
+            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'UPDATE', now(),  NEW.* ;
             RETURN NEW;
           ELSIF ( TG_OP = 'DELETE') THEN
-            INSERT INTO "#{described_class.audit_table}" select 'DELETE', now(), OLD.* ;
+            INSERT INTO "#{described_class.audit_table}" select nextval(\'#{described_class.audit_table_pk_sequence}\'), 'DELETE', now(), OLD.* ;
             RETURN NEW;
           END IF;
         END;
@@ -153,9 +127,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
         FOR EACH ROW EXECUTE PROCEDURE primary_to_audit_table_trigger();
       SQL
 
+      expect(client.connection).to receive(:async_exec).with(result).and_call_original
       expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(3).times.and_call_original
       expect(client.connection).to receive(:async_exec).with("SET lock_timeout = '5s';\nLOCK TABLE books IN ACCESS EXCLUSIVE MODE;\n").and_call_original
-      expect(client.connection).to receive(:async_exec).with(result).and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
 
       described_class.setup_trigger!
@@ -205,7 +179,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
     it "adds entries to the audit table for INSERT/UPDATE/DELETE" do
       described_class.setup_trigger!
-
       query = <<~SQL
         INSERT INTO "sellers"("name", "createdOn", "last_login")
         VALUES('local shop', 'now()', 'now()');
