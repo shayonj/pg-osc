@@ -101,7 +101,7 @@ print the version
 
 ## Load test
 
-[More about the preliminary load test figures here](docs/loca-test.md)
+[More about the preliminary load test figures here](docs/load-test.md)
 
 ## Examples
 
