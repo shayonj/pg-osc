@@ -69,7 +69,7 @@ statement latencies in milliseconds:
 ```
 
 **Metrics**
-![load-test](docs/load-test-1.png)
+![load-test](load-test-1.png)
 
 **New table structure**
 
