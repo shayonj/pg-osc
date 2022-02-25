@@ -204,7 +204,7 @@ module PgOnlineSchemaChange
           return Query.run(client.connection, query, true)
         end
 
-        sql = Query.copy_data_statement(client, shadow_table)
+        sql = Query.copy_data_statement(client, shadow_table, true)
         Query.run(client.connection, sql, true)
       ensure
         Query.run(client.connection, "COMMIT;") # commit the serializable transaction
