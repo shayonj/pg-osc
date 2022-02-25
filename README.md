@@ -16,8 +16,8 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 - [Installation](#installation)
 - [Requirements](#requirements)
 - [Usage](#usage)
-- [How does it work](#how-does-it-work)
 - [Prominent features](#prominent-features)
+- [Load test](#load-test)
 - [Examples](#examples)
   * [Renaming a column](#renaming-a-column)
   * [Multiple ALTER statements](#multiple-alter-statements)
@@ -25,6 +25,7 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
   * [Backfill data](#backfill-data)
   * [Running using Docker](#running-using-docker)
 - [Caveats](#caveats)
+- [How does it work](#how-does-it-work)
 - [Development](#development)
 - [Releasing](#releasing)
 - [Contributing](#contributing)
@@ -90,29 +91,6 @@ Usage:
 
 print the version
 ```
-## How does it work
-
-- **Primary table**: A table against which a potential schema change is to be run
-- **Shadow table**: A copy of an existing primary table
-- **Audit table**: A table to store any updates/inserts/delete on a primary table
-
-![how-it-works](diagrams/how-it-works.png)
-
-
-1. Create an audit table to record changes made to the parent table.
-2. Acquire a brief `ACCESS EXCLUSIVE` lock to add a trigger on the parent table (for inserts, updates, deletes) to the audit table.
-3. Create a new shadow table and run ALTER/migration on the shadow table. 
-4. Copy all rows from the old table.
-5. Build indexes on the new table.
-6. Replay all changes accumulated in the audit table against the shadow table.
-   - Delete rows in the audit table as they are replayed.
-7. Once the delta (remaining rows) is ~20 rows, acquire an `ACCESS EXCLUSIVE` lock against the parent table within a transaction and:
-   - swap table names (shadow table <> parent table).
-   - update references in other tables (FKs) by dropping and re-creating the FKs with a `NOT VALID`.
-8. Runs `ANALYZE` on the new table.
-9. Validates all FKs that were added with `NOT VALID`.
-10. Drop parent (now old) table (OPTIONAL).
-
 ## Prominent features
 - `pg-osc` supports when a column is being added, dropped or renamed with no data loss. 
 - `pg-osc` acquires minimal locks throughout the process (read more below on the caveats).
@@ -120,6 +98,10 @@ print the version
 - Optionally drop or retain old tables in the end.
 - Backfill old/new columns as data is copied from primary table to shadow table, and then perform the swap. [Example](#backfill-data)
 - **TBD**: Ability to reverse the change with no data loss. [tracking issue](https://github.com/shayonj/pg-osc/issues/14)
+
+## Load test
+
+[More about the preliminary load test figures here](docs/loca-test.md)
 
 ## Examples
 
@@ -215,6 +197,29 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
   - Can be fixed in future releases. Feel free to open a feature req.
 - Foreign keys are dropped & re-added to referencing tables with a `NOT VALID`. A follow on `VALIDATE CONSTRAINT` is run.
  	- Ensures that integrity is maintained and re-introducing FKs doesn't acquire additional locks, hence the `NOT VALID`.
+## How does it work
+
+- **Primary table**: A table against which a potential schema change is to be run
+- **Shadow table**: A copy of an existing primary table
+- **Audit table**: A table to store any updates/inserts/delete on a primary table
+
+![how-it-works](docs/how-it-works.png)
+
+
+1. Create an audit table to record changes made to the parent table.
+2. Acquire a brief `ACCESS EXCLUSIVE` lock to add a trigger on the parent table (for inserts, updates, deletes) to the audit table.
+3. Create a new shadow table and run ALTER/migration on the shadow table. 
+4. Copy all rows from the old table.
+5. Build indexes on the new table.
+6. Replay all changes accumulated in the audit table against the shadow table.
+   - Delete rows in the audit table as they are replayed.
+7. Once the delta (remaining rows) is ~20 rows, acquire an `ACCESS EXCLUSIVE` lock against the parent table within a transaction and:
+   - swap table names (shadow table <> parent table).
+   - update references in other tables (FKs) by dropping and re-creating the FKs with a `NOT VALID`.
+8. Runs `ANALYZE` on the new table.
+9. Validates all FKs that were added with `NOT VALID`.
+10. Drop parent (now old) table (OPTIONAL).
+
 ## Development
 
 - Install ruby 3.0
