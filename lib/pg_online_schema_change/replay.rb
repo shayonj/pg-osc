@@ -7,9 +7,6 @@ module PgOnlineSchemaChange
     extend Helper
 
     class << self
-      PULL_BATCH_COUNT = 1000
-      DELTA_COUNT = 20
-
       # This, picks PULL_BATCH_COUNT rows by primary key from audit_table,
       # replays it on the shadow_table. Once the batch is done,
       # it them deletes those PULL_BATCH_COUNT rows from audit_table. Then, pull another batch,
@@ -20,7 +17,7 @@ module PgOnlineSchemaChange
         loop do
           rows = rows_to_play
 
-          raise CountBelowDelta if rows.count <= DELTA_COUNT
+          raise CountBelowDelta if rows.count <= client.delta_count
 
           play!(rows)
         end
@@ -28,7 +25,7 @@ module PgOnlineSchemaChange
 
       def rows_to_play(reuse_trasaction = false)
         select_query = <<~SQL
-          SELECT * FROM #{audit_table} ORDER BY #{audit_table_pk} LIMIT #{PULL_BATCH_COUNT};
+          SELECT * FROM #{audit_table} ORDER BY #{audit_table_pk} LIMIT #{client.pull_batch_count};
         SQL
 
         rows = []

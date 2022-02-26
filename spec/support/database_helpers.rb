@@ -17,6 +17,8 @@ module DatabaseHelpers
       drop: false,
       kill_backends: false,
       wait_time_for_lock: 5,
+      delta_count: 20,
+      pull_batch_count: 1000,
       copy_statement: "",
     }
     Struct.new(*options.keys).new(*options.values)

@@ -3,8 +3,10 @@
 require "thor"
 
 module PgOnlineSchemaChange
+  PULL_BATCH_COUNT = 1000
+  DELTA_COUNT = 20
   class CLI < Thor
-    desc "perform", "Perform the set of operations to safely apply the schema change with minimal locks"
+    desc "perform", "Safely apply schema changes with minimal locks"
     method_option :alter_statement, aliases: "-a", type: :string, required: true,
                                     desc: "The ALTER statement to perform the schema change"
     method_option :schema, aliases: "-s", type: :string, required: true, default: "public",
@@ -23,6 +25,10 @@ module PgOnlineSchemaChange
                                        desc: "Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock."
     method_option :copy_statement, aliases: "-c", type: :string, required: false, default: "",
                                    desc: "Takes a .sql file location where you can provide a custom query to be played (ex: backfills) when pgosc copies data from the primary to the shadow table. More examples in README."
+    method_option :pull_batch_count, aliases: "-b", type: :numeric, required: false, default: PULL_BATCH_COUNT,
+                                     desc: "Number of rows to be replayed on each iteration after copy. This can be tuned for faster catch up and swap. Best used with delta-count."
+    method_option :delta_count, aliases: "-e", type: :numeric, required: false, default: DELTA_COUNT,
+                                desc: "Indicates how many rows should be remaining before a swap should be performed. This can be tuned for faster catch up and swap, especially on highly volume tables. Best used with pull-batch-count."
 
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)

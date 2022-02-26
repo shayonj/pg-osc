@@ -5,7 +5,7 @@ require "pg"
 module PgOnlineSchemaChange
   class Client
     attr_accessor :alter_statement, :schema, :dbname, :host, :username, :port, :password, :connection, :table, :drop,
-                  :kill_backends, :wait_time_for_lock, :copy_statement
+                  :kill_backends, :wait_time_for_lock, :copy_statement, :pull_batch_count, :delta_count
 
     def initialize(options)
       @alter_statement = options.alter_statement
@@ -18,6 +18,8 @@ module PgOnlineSchemaChange
       @drop = options.drop
       @kill_backends = options.kill_backends
       @wait_time_for_lock = options.wait_time_for_lock
+      @pull_batch_count = options.pull_batch_count
+      @delta_count = options.delta_count
 
       handle_copy_statement(options.copy_statement)
       handle_validations
