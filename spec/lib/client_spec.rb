@@ -14,6 +14,8 @@ RSpec.describe PgOnlineSchemaChange::Client do
     expect(client.table).to eq("books")
     expect(client.drop).to eq(false)
     expect(client.copy_statement).to eq(nil)
+    expect(client.delta_count).to eq(20)
+    expect(client.pull_batch_count).to eq(1000)
   end
 
   it "raises error query is not ALTER" do

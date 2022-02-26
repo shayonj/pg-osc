@@ -76,13 +76,17 @@ Options:
   -u, --username=USERNAME                      # Username for the Database
   -p, --port=N                                 # Port for the Database
                                                # Default: 5432
-  -w, --password=PASSWORD                      # DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead
+  -w, --password=PASSWORD                      # DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead.
   -v, [--verbose], [--no-verbose]              # Emit logs in debug mode
   -f, [--drop], [--no-drop]                    # Drop the original table in the end after the swap
   -k, [--kill-backends], [--no-kill-backends]  # Kill other competing queries/backends when trying to acquire lock for the shadow table creation and swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times.
   -w, [--wait-time-for-lock=N]                 # Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock.
                                                # Default: 10
-  -c, [--copy-statement=COPY_STATEMENT]        # Takes a .sql file location where you can provide a custom query to be played (ex: backfills) when pg-osc copies data from the primary to the shadow table. More examples in README.
+  -c, [--copy-statement=COPY_STATEMENT]        # Takes a .sql file location where you can provide a custom query to be played (ex: backfills) when pgosc copies data from the primary to the shadow table. More examples in README.
+  -b, [--pull-batch-count=N]                   # Number of rows to be replayed on each iteration after copy. This can be tuned for faster catch up and swap. Best used with delta-count.
+                                               # Default: 1000
+  -e, [--delta-count=N]                        # Indicates how many rows should be remaining before a swap should be performed. This can be tuned for faster catch up and swap, especially on highly volume tables. Best used with pull-batch-count.
+                                               # Default: 20
 ```
 
 ```
@@ -136,7 +140,24 @@ pg-online-schema-change perform \
   --dbname "postgres" \
   --host "localhost" \
   --username "jamesbond" \
-  --wait-time-for-lock=5 \
+  --wait-time-for-lock 5 \
+  --kill-backends \
+  --drop
+```
+
+### Replaying larger workloads
+If you have a table with high write volume, the default replay iteration may not suffice. That is - you may see that `pg-osc` is replaying 1000 rows (`pull-batch-count`) in one go from the audit table. `pg-osc` also waits until the remaining row count (`delta-count`) in audit table is 20 before making the swap. You can tune these values to be higher for faster catch up on these kind of workloads.
+
+```
+export PGPASSWORD=""
+pg-online-schema-change perform \
+  --alter-statement 'ALTER TABLE books ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE;' \
+  --dbname "postgres" \
+  --host "localhost" \
+  --username "jamesbond" \
+  --pull-batch-count 2000
+  --delta-count 500
+  --wait-time-for-lock 5 \
   --kill-backends \
   --drop
 ```

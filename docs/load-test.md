@@ -42,6 +42,8 @@ bundle exec bin/pg-online-schema-change perform \
 -p 25061
 -h "..." \
 -u "..." \
+--pull-batch-count 2000 \
+--delta-count 200
 ```
 
 ## Outcome
@@ -133,6 +135,4 @@ NOTICE:  table "pgosc_st_pgbench_accounts_714a8b" does not exist, skipping
 
 ## Conclusion
 
-By tweaking `PULL_BATCH_COUNT` to `2000` (replay 2k rows at once) and `DELTA_COUNT` to `200` (time to swap when remaining rows is <200), `pg-osc` was able to perform the schema change with no impact within very quick time. Depending on the database size and load on the table, you can further tune them to achieve desired impact. At some point this is going to plateau - I can imagine the replay factor not working quite well for say 100k commits/s workloads. So, YMMV.
-
-`PULL_BATCH_COUNT` and `DELTA_COUNT` aren't configurable via CLI yet, but they will soon be.
+By tweaking `--pull-batch-count` to `2000` (replay 2k rows at once) and `--delta-count` to `200` (time to swap when remaining rows is <200), `pg-osc` was able to perform the schema change with no impact within very quick time. Depending on the database size and load on the table, you can further tune them to achieve desired impact. At some point this is going to plateau - I can imagine the replay factor not working quite well for say 100k commits/s workloads. So, YMMV.
