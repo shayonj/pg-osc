@@ -100,6 +100,7 @@ print the version
 - `pg-osc` acquires minimal locks throughout the process (read more below on the caveats).
 - Copies over indexes and Foreign keys.
 - Optionally drop or retain old tables in the end.
+- Tune how slow or fast should replays be from the audit/log table ([Replaying larger workloads](#replaying-larger-workloads)).
 - Backfill old/new columns as data is copied from primary table to shadow table, and then perform the swap. [Example](#backfill-data)
 - **TBD**: Ability to reverse the change with no data loss. [tracking issue](https://github.com/shayonj/pg-osc/issues/14)
 
