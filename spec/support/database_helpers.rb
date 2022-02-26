@@ -9,10 +9,10 @@ module DatabaseHelpers
     options = {
       alter_statement: 'ALTER TABLE books ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE;',
       schema: schema,
-      dbname: ENV["POSTGRES_DB"] || "postgres",
-      host: ENV["POSTGRES_HOST"] || "127.0.0.1",
-      username: ENV["POSTGRES_USER"] || "jamesbond",
-      password: ENV["POSTGRES_PASSWORD"] || "password",
+      dbname: ENV["PGDATABASE"] || "postgres",
+      host: ENV["PGPORT"] || "127.0.0.1",
+      username: ENV["PGUSER"] || "jamesbond",
+      password: ENV["PGPASSWORD"] || "password",
       port: ENV["port"] || 5432,
       drop: false,
       kill_backends: false,
@@ -51,7 +51,8 @@ module DatabaseHelpers
         last_login TIMESTAMP
       );
 
-      ALTER ROLE jamesbond SET statement_timeout = 60000;
+      ALTER ROLE jamesbond SET statement_timeout = '60s';
+      ALTER ROLE jamesbond SET lock_timeout = '60s';
     SQL
   end
 

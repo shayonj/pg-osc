@@ -13,7 +13,7 @@ module PgOnlineSchemaChange
     method_option :host, aliases: "-h", type: :string, required: true, desc: "Server host where the Database is located"
     method_option :username, aliases: "-u", type: :string, required: true, desc: "Username for the Database"
     method_option :port, aliases: "-p", type: :numeric, required: true, default: 5432, desc: "Port for the Database"
-    method_option :password, aliases: "-w", type: :string, required: true, desc: "Password for the Database"
+    method_option :password, aliases: "-w", type: :string, required: true, desc: "DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead."
     method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Emit logs in debug mode"
     method_option :drop, aliases: "-f", type: :boolean, default: false,
                          desc: "Drop the original table in the end after the swap"
@@ -26,8 +26,12 @@ module PgOnlineSchemaChange
 
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)
-
       PgOnlineSchemaChange.logger(verbose: client_options.verbose)
+
+      PgOnlineSchemaChange.logger.warn("DEPRECATED: -w is deprecated. Please pass PGPASSWORD environment variable instead.") if client_options.password
+
+      client_options.password = ENV["PGPASSWORD"] || client_options.password
+
       PgOnlineSchemaChange::Orchestrate.run!(client_options)
     end
 
