@@ -1,3 +1,9 @@
+## [0.5.0] - 2022-02-26
+* Share some preliminary load test figures in https://github.com/shayonj/pg-osc/pull/54
+* Reuse existing transaction open for reading table columns in https://github.com/shayonj/pg-osc/pull/53
+* Start to deprecate --password with PGPASSWORD in https://github.com/shayonj/pg-osc/pull/56
+* Introduce configurable PULL_BATCH_COUNT and DELTA_COUNT in https://github.com/shayonj/pg-osc/pull/57
+
 ## [0.4.0] - 2022-02-22
 * Lint sourcecode, setup Rubocop proper and Lint in CI by @shayonj in https://github.com/shayonj/pg-osc/pull/46
 * Uniquely identify operation_type column by @shayonj in https://github.com/shayonj/pg-osc/pull/50
