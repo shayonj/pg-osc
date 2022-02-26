@@ -76,7 +76,7 @@ Options:
   -u, --username=USERNAME                      # Username for the Database
   -p, --port=N                                 # Port for the Database
                                                # Default: 5432
-  -w, --password=PASSWORD                      # Password for the Database
+  -w, --password=PASSWORD                      # DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead
   -v, [--verbose], [--no-verbose]              # Emit logs in debug mode
   -f, [--drop], [--no-drop]                    # Drop the original table in the end after the swap
   -k, [--kill-backends], [--no-kill-backends]  # Kill other competing queries/backends when trying to acquire lock for the shadow table creation and swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times.
@@ -107,22 +107,22 @@ print the version
 
 ### Renaming a column
 ```
+export PGPASSWORD=""
 pg-online-schema-change perform \
   --alter-statement 'ALTER TABLE books RENAME COLUMN email TO new_email' \
   --dbname "postgres" \
   --host "localhost" \
   --username "jamesbond" \
-  --password "" \
 ```
 
 ### Multiple ALTER statements
 ```
+export PGPASSWORD=""
 pg-online-schema-change perform \
   --alter-statement 'ALTER TABLE books ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE; ALTER TABLE books RENAME COLUMN email TO new_email;' \
   --dbname "postgres" \
   --host "localhost" \
   --username "jamesbond" \
-  --password "" \
   --drop
 ```
 
@@ -130,12 +130,12 @@ pg-online-schema-change perform \
 If the operation is being performed on a busy table, you can use `pg-osc`'s `kill-backend` functionality to kill other backends that may be competing with the `pg-osc` operation to acquire a lock for a brief while. The `ACCESS EXCLUSIVE` lock acquired by `pg-osc` is only held for a brief while and released after. You can tune how long `pg-osc` should wait before killing other backends (or if at all `pg-osc` should kill backends in the first place).
 
 ```
+export PGPASSWORD=""
 pg-online-schema-change perform \
   --alter-statement 'ALTER TABLE books ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE;' \
   --dbname "postgres" \
   --host "localhost" \
   --username "jamesbond" \
-  --password "" \
   --wait-time-for-lock=5 \
   --kill-backends \
   --drop
@@ -165,7 +165,6 @@ pg-online-schema-change perform \
   --dbname "postgres" \
   --host "localhost" \
   --username "jamesbond" \
-  --password "" \
   --copy-statement "/src/query.sql" \
   --drop
 ```
@@ -179,7 +178,6 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
     --dbname "postgres" \
     --host "localhost" \
     --username "jamesbond" \
-    --password "" \
     --drop
 ```
 ## Caveats

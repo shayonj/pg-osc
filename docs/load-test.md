@@ -42,7 +42,6 @@ bundle exec bin/pg-online-schema-change perform \
 -p 25061
 -h "..." \
 -u "..." \
--w "..." \
 ```
 
 ## Outcome
