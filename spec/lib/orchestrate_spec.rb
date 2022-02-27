@@ -13,11 +13,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(5).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(6).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with(/convalidated AS constraint_validated/).and_call_original
       expect(client.connection).to receive(:async_exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\nSET search_path TO #{client.schema};\n").and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_FIX_SERIAL_SEQUENCE).and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_CREATE_TABLE_ALL).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(5).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(6).times.and_call_original
       expect(client.connection).to receive(:async_exec).with("SHOW statement_timeout;").and_call_original
       expect(client.connection).to receive(:async_exec).with("SHOW client_min_messages;").and_call_original
 
@@ -866,7 +867,6 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "closes transaction when it couldn't acquire lock" do
-      expect(PgOnlineSchemaChange::Query).to receive(:get_foreign_keys_to_refresh).with(client, client.table)
       expect(PgOnlineSchemaChange::Query).to receive(:run).with(
         client.connection,
         "SET statement_timeout = 0;",

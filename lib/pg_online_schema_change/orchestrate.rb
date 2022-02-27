@@ -37,6 +37,8 @@ module PgOnlineSchemaChange
         Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
         Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table}_#{pgosc_identifier}")
+
+        Store.set(:foreign_key_statements, Query.get_foreign_keys_to_refresh(client, client.table))
       end
 
       def run!(options)
@@ -221,7 +223,6 @@ module PgOnlineSchemaChange
       def swap!
         logger.info("Performing swap!")
 
-        foreign_key_statements = Query.get_foreign_keys_to_refresh(client, client.table)
         storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});"
 
         # From here on, all statements are carried out in a single
@@ -244,7 +245,7 @@ module PgOnlineSchemaChange
           DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
         SQL
 
-        Query.run(client.connection, sql)
+        Query.run(client.connection, sql, opened)
       ensure
         Query.run(client.connection, "COMMIT;")
         Query.run(client.connection, "SET statement_timeout = 0;")
@@ -270,6 +271,7 @@ module PgOnlineSchemaChange
         shadow_table_drop = shadow_table ? "DROP TABLE IF EXISTS #{shadow_table}" : ""
 
         sql = <<~SQL
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
           #{audit_table_drop};
           #{shadow_table_drop};
           #{primary_drop}
