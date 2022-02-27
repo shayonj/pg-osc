@@ -87,7 +87,7 @@ module PgOnlineSchemaChange
             SQL
             to_be_replayed << sql
 
-            to_be_deleted_rows << "'#{row[primary_key]}'"
+            to_be_deleted_rows << "'#{row[audit_table_pk]}'"
           when "UPDATE"
             set_values = new_row.map do |column, value|
               "#{column} = '#{value}'"
@@ -100,14 +100,14 @@ module PgOnlineSchemaChange
             SQL
             to_be_replayed << sql
 
-            to_be_deleted_rows << "'#{row[primary_key]}'"
+            to_be_deleted_rows << "'#{row[audit_table_pk]}'"
           when "DELETE"
             sql = <<~SQL
               DELETE FROM #{shadow_table} WHERE #{primary_key}=\'#{row[primary_key]}\';
             SQL
             to_be_replayed << sql
 
-            to_be_deleted_rows << "'#{row[primary_key]}'"
+            to_be_deleted_rows << "'#{row[audit_table_pk]}'"
           end
         end
 
@@ -117,7 +117,7 @@ module PgOnlineSchemaChange
         return unless to_be_deleted_rows.count >= 1
 
         delete_query = <<~SQL
-          DELETE FROM #{audit_table} WHERE #{primary_key} IN (#{to_be_deleted_rows.join(",")})
+          DELETE FROM #{audit_table} WHERE #{audit_table_pk} IN (#{to_be_deleted_rows.join(",")})
         SQL
         Query.run(client.connection, delete_query, reuse_trasaction)
       end
