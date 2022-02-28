@@ -1,0 +1,47 @@
+name: Smoke Test PG 13.6
+on: [push]
+
+concurrency:
+  group: branch-smoke-13-6-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pgbench-rspec:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13.6-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: jamesbond
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: password
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 10s --health-retries 20
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependent libraries
+        run: sudo apt install -y postgresql-client
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.0"
+          bundler: default
+          bundler-cache: true
+
+      - name: Bundle install
+        env:
+          RAILS_ENV: test
+        run: |
+          gem install bundler
+          bundle install --jobs 4 --retry 3 --path vendor/bundle
+
+      - name: Run pgbench and rspec
+        run: bundle exec rspec spec/lib/smoke_spec.rb
+        env:
+          POSTGRES_USER: jamesbond
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: password
+          PGPASSWORD: password
