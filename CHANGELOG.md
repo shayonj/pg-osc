@@ -1,3 +1,7 @@
+## [0.6.0] - 2022-02-26
+* Delete items by audit table PK when replaying by @shayonj @jfrost in https://github.com/shayonj/pg-osc/pull/60
+  - Fixes a race condition issue: https://github.com/shayonj/pg-osc/issues/58
+
 ## [0.5.0] - 2022-02-26
 * Share some preliminary load test figures in https://github.com/shayonj/pg-osc/pull/54
 * Reuse existing transaction open for reading table columns in https://github.com/shayonj/pg-osc/pull/53
