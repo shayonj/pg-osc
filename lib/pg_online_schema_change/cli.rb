@@ -15,7 +15,7 @@ module PgOnlineSchemaChange
     method_option :host, aliases: "-h", type: :string, required: true, desc: "Server host where the Database is located"
     method_option :username, aliases: "-u", type: :string, required: true, desc: "Username for the Database"
     method_option :port, aliases: "-p", type: :numeric, required: true, default: 5432, desc: "Port for the Database"
-    method_option :password, aliases: "-w", type: :string, required: true, desc: "DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead."
+    method_option :password, aliases: "-w", type: :string, required: false, default: "", desc: "DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead."
     method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Emit logs in debug mode"
     method_option :drop, aliases: "-f", type: :boolean, default: false,
                          desc: "Drop the original table in the end after the swap"
