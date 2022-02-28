@@ -801,6 +801,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
         # query being cancelled
       end
       Process.detach(pid)
+      sleep 1
 
       options = client_options.to_h.merge(
         kill_backends: true,

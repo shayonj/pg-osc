@@ -1,6 +1,10 @@
 name: CI
 on: [push]
 
+concurrency:
+  group: branch-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rspec:
     runs-on: ubuntu-latest
