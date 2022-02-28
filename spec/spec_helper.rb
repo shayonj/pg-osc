@@ -18,7 +18,7 @@ RSpec.configure do |config|
   config.include DatabaseHelpers
 
   config.before(:suite) do
-    PgOnlineSchemaChange.logger(verbose: !ENV["CI"].nil?)
+    PgOnlineSchemaChange.logger(verbose: false) # manually turn it on for debugging
   end
 
   config.after(:all) do
