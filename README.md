@@ -1,6 +1,6 @@
 # pg-osc
 
-[![CircleCI](https://circleci.com/gh/shayonj/pg-osc/tree/main.svg?style=shield)](https://circleci.com/gh/shayonj/pg-osc/tree/main)
+[![CI](https://github.com/shayonj/pg-osc/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/shayonj/pg-osc/actions/workflows/ci.yaml)
 [![Gem Version](https://badge.fury.io/rb/pg_online_schema_change.svg)](https://badge.fury.io/rb/pg_online_schema_change)
 
 pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads. 
