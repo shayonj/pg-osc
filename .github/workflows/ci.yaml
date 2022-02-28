@@ -19,19 +19,16 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v1
-      - uses: actions/setup-ruby@v1
-        with:
-          ruby-version: 3.0
 
       - name: Install dependent libraries
         run: sudo apt install -y postgresql-client
 
-      - name: Gem cache
-        id: cache-bundle
-        uses: actions/cache@v1
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          path: vendor/bundle
-          key: bundle-${{ hashFiles('**/Gemfile.lock') }}
+          ruby-version: "3.0"
+          bundler: default
+          bundler-cache: true
 
       - name: Bundle install
         env:
