@@ -1,12 +1,12 @@
-name: CI
+name: Smoke Test PG 9.6
 on: [push]
 
 concurrency:
-  group: branch-${{ github.ref }}
+  group: branch-smoke-9-6-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  rspec:
+  pgbench-rspec:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_USER: jamesbond
           POSTGRES_DB: postgres
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 10s --health-retries 20
     steps:
       - uses: actions/checkout@v1
 
@@ -37,11 +37,8 @@ jobs:
           gem install bundler
           bundle install --jobs 4 --retry 3 --path vendor/bundle
 
-      - name: Run Lint
-        run: bundle exec rubocop
-
-      - name: Run RSpec
-        run: bundle exec rspec
+      - name: Run pgbench and rspec
+        run: bundle exec rspec spec/lib/smoke_spec.rb
         env:
           POSTGRES_USER: jamesbond
           POSTGRES_DB: postgres

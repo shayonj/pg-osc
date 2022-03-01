@@ -1,6 +1,8 @@
 # pg-osc
 
 [![CI](https://github.com/shayonj/pg-osc/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/shayonj/pg-osc/actions/workflows/ci.yaml)
+[![Smoke Test PG 9.6](https://github.com/shayonj/pg-osc/actions/workflows/smoke-tests-9-6.yaml/badge.svg?branch=main)](https://github.com/shayonj/pg-osc/actions/workflows/smoke-tests-9-6.yaml)
+[![Smoke Test PG 13.6](https://github.com/shayonj/pg-osc/actions/workflows/smoke-tests-13-6.yaml/badge.svg?branch=main)](https://github.com/shayonj/pg-osc/actions/workflows/smoke-tests-13-6.yaml)
 [![Gem Version](https://badge.fury.io/rb/pg_online_schema_change.svg)](https://badge.fury.io/rb/pg_online_schema_change)
 
 pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads. 
