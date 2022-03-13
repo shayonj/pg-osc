@@ -1,5 +1,8 @@
 
-## [0.6.0] - 2022-03-13
+## [0.7.1] - 2022-03-13
+* Bump pg to `1.3.4` https://github.com/shayonj/pg-osc/commit/d086c19d4f273dc960491cbedf9e0602d812896b
+
+## [0.7.0] - 2022-03-13
 * Move CI to Github Actions in https://github.com/shayonj/pg-osc/pull/64
 * Set --password as optional since it is deprecated in https://github.com/shayonj/pg-osc/pull/66
 * Smoke tests in https://github.com/shayonj/pg-osc/pull/65
