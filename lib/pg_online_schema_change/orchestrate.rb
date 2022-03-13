@@ -38,7 +38,8 @@ module PgOnlineSchemaChange
         Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table}_#{pgosc_identifier}")
 
-        Store.set(:foreign_key_statements, Query.get_foreign_keys_to_refresh(client, client.table))
+        Store.set(:referential_foreign_key_statements, Query.referential_foreign_keys_to_refresh(client, client.table))
+        Store.set(:self_foreign_key_statements, Query.self_foreign_keys_to_refresh(client, client.table))
       end
 
       def run!(options)
@@ -240,7 +241,8 @@ module PgOnlineSchemaChange
         sql = <<~SQL
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
-          #{foreign_key_statements}
+          #{referential_foreign_key_statements}
+          #{self_foreign_key_statements}
           #{storage_params_reset}
           DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
         SQL

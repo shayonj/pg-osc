@@ -13,12 +13,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(6).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(7).times.and_call_original
       expect(client.connection).to receive(:async_exec).with(/convalidated AS constraint_validated/).and_call_original
       expect(client.connection).to receive(:async_exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\nSET search_path TO #{client.schema};\n").and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_FIX_SERIAL_SEQUENCE).and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_CREATE_TABLE_ALL).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(6).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(7).times.and_call_original
       expect(client.connection).to receive(:async_exec).with("SHOW statement_timeout;").and_call_original
       expect(client.connection).to receive(:async_exec).with("SHOW client_min_messages;").and_call_original
 
@@ -298,14 +298,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                              "CREATE UNIQUE INDEX #{described_class.shadow_table}_email_key ON #{described_class.shadow_table} USING btree (email)"])
 
       foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, described_class.shadow_table.to_s)
-      expect(foreign_keys).to eq([
-        { "table_on" => described_class.shadow_table.to_s,
-          "table_from" => "sellers",
-          "constraint_type" => "f",
-          "constraint_name" => "#{client.table}_seller_id_fkey",
-          "constraint_validated" => "t",
-          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
-      ])
+      expect(foreign_keys).to eq([])
       primary_keys = PgOnlineSchemaChange::Query.get_primary_keys_for(client, described_class.shadow_table.to_s)
       expect(primary_keys).to eq([
         { "constraint_name" => "#{described_class.shadow_table}_pkey",
@@ -866,6 +859,20 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       ])
     end
 
+    it "transfers the foreign keys from parent table" do
+      described_class.swap!
+
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, client.table)
+      expect(foreign_keys).to eq([
+        { "table_on" => client.table,
+          "table_from" => "sellers",
+          "constraint_type" => "f",
+          "constraint_name" => "#{client.table}_seller_id_fkey",
+          "constraint_validated" => "f",
+          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id) NOT VALID" },
+      ])
+    end
+
     it "closes transaction when it couldn't acquire lock" do
       expect(PgOnlineSchemaChange::Query).to receive(:run).with(
         client.connection,
@@ -940,7 +947,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       described_class.swap!
     end
 
-    it "sucessfully validates the constraints the tables" do
+    it "sucessfully validates the constraints on the referential tables" do
       result = [{
         "table_on" => "chapters",
         "table_from" => "books",
@@ -962,6 +969,31 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, "chapters")
       expect(foreign_keys).to eq(result)
+    end
+
+    it "succesfully validations contraints on the primary table" do
+      # swap has happened w/ not valid
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, client.table)
+      expect(foreign_keys).to eq([
+        { "table_on" => client.table,
+          "table_from" => "sellers",
+          "constraint_type" => "f",
+          "constraint_name" => "#{client.table}_seller_id_fkey",
+          "constraint_validated" => "f",
+          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id) NOT VALID" },
+      ])
+
+      described_class.validate_constraints!
+
+      foreign_keys = PgOnlineSchemaChange::Query.get_foreign_keys_for(client, client.table)
+      expect(foreign_keys).to eq([
+        { "table_on" => client.table,
+          "table_from" => "sellers",
+          "constraint_type" => "f",
+          "constraint_name" => "#{client.table}_seller_id_fkey",
+          "constraint_validated" => "t",
+          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+      ])
     end
   end
 

@@ -140,7 +140,7 @@ module PgOnlineSchemaChange
         end
       end
 
-      def get_foreign_keys_to_refresh(client, table)
+      def referential_foreign_keys_to_refresh(client, table)
         references = get_all_constraints_for(client).select do |row|
           row["table_from"] == table && row["constraint_type"] == "f"
         end
@@ -158,12 +158,32 @@ module PgOnlineSchemaChange
         end.join
       end
 
-      def get_foreign_keys_to_validate(client, table)
+      def self_foreign_keys_to_refresh(client, table)
         references = get_all_constraints_for(client).select do |row|
-          row["table_from"] == table && row["constraint_type"] == "f"
+          row["table_on"] == table && row["constraint_type"] == "f"
         end
 
         references.map do |row|
+          add_statement = if row["definition"].end_with?("NOT VALID")
+                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+                          else
+                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+                          end
+          add_statement
+        end.join
+      end
+
+      def get_foreign_keys_to_validate(client, table)
+        constraints = get_all_constraints_for(client)
+        referential_foreign_keys = constraints.select do |row|
+          row["table_from"] == table && row["constraint_type"] == "f"
+        end
+
+        self_foreign_keys = constraints.select do |row|
+          row["table_on"] == table && row["constraint_type"] == "f"
+        end
+
+        [referential_foreign_keys, self_foreign_keys].flatten.map do |row|
           "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
         end.join
       end

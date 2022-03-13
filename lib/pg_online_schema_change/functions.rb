@@ -47,18 +47,6 @@ FUNC_CREATE_TABLE_ALL = <<~SQL
     EXECUTE format(
           'CREATE TABLE %s (LIKE %s including all)',
           newsource_table, source_table);
-      for rec in
-          SELECT oid, conname
-          FROM pg_constraint
-          WHERE contype = 'f'
-          AND conrelid = source_table::regclass
-      LOOP
-      EXECUTE format(
-              'ALTER TABLE %s add constraint %s %s',
-              newsource_table,
-              rec.conname,
-              pg_get_constraintdef(rec.oid));
-      END LOOP;
     END
   $$;
 SQL
