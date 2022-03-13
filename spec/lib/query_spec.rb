@@ -310,7 +310,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
   end
 
-  describe ".get_foreign_keys_to_refresh" do
+  describe ".referential_foreign_keys_to_refresh" do
     let(:client) do
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
@@ -326,7 +326,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
 
     it "returns drop and add statements" do
-      expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
+      expect(described_class.referential_foreign_keys_to_refresh(client, "books")).to eq(result)
     end
 
     it "returns drop and add statements accordingly when NOT VALID is present" do
@@ -335,7 +335,36 @@ RSpec.describe PgOnlineSchemaChange::Query do
       described_class.run(client.connection,
                           "ALTER TABLE chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;")
 
-      expect(described_class.get_foreign_keys_to_refresh(client, "books")).to eq(result)
+      expect(described_class.referential_foreign_keys_to_refresh(client, "books")).to eq(result)
+    end
+  end
+
+  describe ".self_foreign_keys_to_refresh" do
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    let(:result) do
+      "ALTER TABLE books ADD CONSTRAINT books_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES sellers(id) NOT VALID;"
+    end
+
+    before do
+      setup_tables(client)
+    end
+
+    it "returns add statements" do
+      expect(described_class.self_foreign_keys_to_refresh(client, "books")).to eq(result)
+    end
+
+    it "returns add statements accordingly when NOT VALID is present" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      described_class.run(client.connection, "ALTER TABLE books DROP CONSTRAINT books_seller_id_fkey;")
+      described_class.run(client.connection,
+                          "ALTER TABLE books ADD CONSTRAINT books_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES sellers(id) NOT VALID;")
+
+      expect(described_class.self_foreign_keys_to_refresh(client, "books")).to eq(result)
     end
   end
 
@@ -351,7 +380,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
 
     it "returns drop and add statements" do
-      result = "ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;"
+      result = "ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;ALTER TABLE books VALIDATE CONSTRAINT books_seller_id_fkey;"
       expect(described_class.get_foreign_keys_to_validate(client, "books")).to eq(result)
     end
   end
