@@ -1,3 +1,10 @@
+
+## [0.6.0] - 2022-03-13
+* Move CI to Github Actions in https://github.com/shayonj/pg-osc/pull/64
+* Set --password as optional since it is deprecated in https://github.com/shayonj/pg-osc/pull/66
+* Smoke tests in https://github.com/shayonj/pg-osc/pull/65
+* Add foreign keys to parent during swap in https://github.com/shayonj/pg-osc/pull/67
+
 ## [0.6.0] - 2022-02-26
 * Delete items by audit table PK when replaying by @shayonj @jfrost in https://github.com/shayonj/pg-osc/pull/60
   - Fixes a race condition issue: https://github.com/shayonj/pg-osc/issues/58
