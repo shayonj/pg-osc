@@ -205,6 +205,7 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
     --drop
 ```
 ## Caveats
+- Partitioned tables are not supported as of yet. Pull requests and ideas welcome.
 - A primary key should exist on the table; without it, `pg-osc` will raise an exception
 	- This is because - currently there is no other way to uniquely identify rows during replay.
 - `pg-osc` will acquire `ACCESS EXCLUSIVE` lock on the parent table twice during the operation.
