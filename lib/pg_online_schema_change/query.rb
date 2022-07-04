@@ -140,6 +140,42 @@ module PgOnlineSchemaChange
         end
       end
 
+      def get_partition_by(client, table)
+        query = <<~SQL
+          select c.relname as table_name,#{" "}
+          pg_get_partkeydef(c.oid) as partition_key
+          from   pg_class c
+          where  c.relkind = 'p' AND c.relname =  \'#{table}\';
+        SQL
+
+        partition_by = []
+        run(client.connection, query) do |result|
+          partition_by = result.map { |r| r }
+        end
+
+        return "" if partition_by.empty?
+
+        "PARTITION BY #{partition_by.first["partition_key"]}"
+      end
+
+      def get_partition_expressions_for(client, table)
+        query = <<~SQL
+          select pt.relname as table_name,
+          pg_get_expr(pt.relpartbound, pt.oid, true) as partition_expression
+          from pg_class base_tb#{" "}
+            join pg_inherits i on i.inhparent = base_tb.oid#{" "}
+            join pg_class pt on pt.oid = i.inhrelid
+          where base_tb.oid = \'#{table}\'::regclass;
+        SQL
+
+        expressions = []
+        run(client.connection, query) do |result|
+          expressions = result.map { |r| r }
+        end
+
+        expressions
+      end
+
       def referential_foreign_keys_to_refresh(client, table)
         references = get_all_constraints_for(client).select do |row|
           row["table_from"] == table && row["constraint_type"] == "f"
@@ -316,7 +352,7 @@ module PgOnlineSchemaChange
         <<~SQL
           INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")})
           SELECT #{select_columns.join(", ")}
-          FROM ONLY #{client.table}
+          FROM #{client.table}
         SQL
       end
     end

@@ -38,15 +38,15 @@ FUNC_FIX_SERIAL_SEQUENCE = <<~SQL
 SQL
 
 FUNC_CREATE_TABLE_ALL = <<~SQL
-  CREATE OR REPLACE FUNCTION create_table_all(source_table text, newsource_table text)
+  CREATE OR REPLACE FUNCTION create_table_all(source_table text, newsource_table text, partitionby text)
     RETURNS void language plpgsql
     as $$
     declare
         rec record;
     begin
     EXECUTE format(
-          'CREATE TABLE %s (LIKE %s including all)',
-          newsource_table, source_table);
+          'CREATE TABLE %s (LIKE %s including all) %s',
+          newsource_table, source_table, partitionby);
     END
   $$;
 SQL

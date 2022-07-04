@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "securerandom"
-
+require "pry"
 module PgOnlineSchemaChange
   class Orchestrate
     SWAP_STATEMENT_TIMEOUT = "5s"
@@ -40,6 +40,8 @@ module PgOnlineSchemaChange
 
         Store.set(:referential_foreign_key_statements, Query.referential_foreign_keys_to_refresh(client, client.table))
         Store.set(:self_foreign_key_statements, Query.self_foreign_keys_to_refresh(client, client.table))
+        Store.set(:partition_by_statement, Query.get_partition_by(client, client.table))
+        Store.set(:partitioned_table?, partition_by_statement != "")
       end
 
       def run!(options)
@@ -156,13 +158,15 @@ module PgOnlineSchemaChange
         Query.run(client.connection, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", true)
         logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
-        Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');", true)
+        Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}', '#{partition_by_statement}');", true)
 
         # update serials
         Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table}', '#{shadow_table}');", true)
       end
 
       def disable_vacuum!
+        return if partitioned_table?
+
         # re-uses transaction with serializable
         # Disabling vacuum to avoid any issues during the process
         result = Query.storage_parameters_for(client, client.table, true) || ""
@@ -208,6 +212,7 @@ module PgOnlineSchemaChange
         end
 
         sql = Query.copy_data_statement(client, shadow_table, true)
+        binding.pry
         Query.run(client.connection, sql, true)
       ensure
         Query.run(client.connection, "COMMIT;") # commit the serializable transaction
