@@ -24,7 +24,7 @@ Layout/SpaceAroundEqualsInParameterDefault:
 
 Metrics/AbcSize:
   Enabled: true
-  Max: 40
+  Max: 45
   Exclude:
     - "spec/**/*"
 
