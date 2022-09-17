@@ -260,6 +260,16 @@ rvm use 3.0.0
 
 To install this gem onto your local machine, run `bundle exec rake install`. 
 
+### Local testing 
+```
+docker compose up
+
+pgbench --initialize -s 10 --foreign-keys --host localhost -U jamesbond -d postgres
+pgbench -T 60000 -c 5 --host localhost -U jamesbond -d postgres
+
+bundle exec bin/pg-online-schema-change perform -a 'ALTER TABLE pgbench_accounts ALTER COLUMN aid TYPE BIGINT' -d "postgres" -h "localhost" -u "jamesbond" -w "password"
+```
+
 ## Releasing
 
 - Bump version in `version.rb`

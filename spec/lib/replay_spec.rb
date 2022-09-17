@@ -21,7 +21,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
       end
 
       it "replays INSERT data and cleanups the rows in audit table after" do
-        user_id = 10
+        user_id = 4
         rows = []
         shadow_table_query = <<~SQL
           SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
@@ -31,14 +31,13 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
           { count: 0 },
         ])
-
         # Add an entry for the trigger
         query = <<~SQL
-          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-          VALUES(10, 1, 'jamesbond10 "''i am bond 🚀''"', '0010', 'james10@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+          INSERT INTO "books"("seller_id", "username", "password", "email", "createdOn", "last_login")
+          VALUES(1, 'jamesbond10 "''i am bond 🚀''"', '0010', 'james10@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
 
-          INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-          VALUES(11, 1, 'jamesbond11 "''i am bond 🚀''"', '0011', 'james11@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+          INSERT INTO "books"("seller_id", "username", "password", "email", "createdOn", "last_login")
+          VALUES(1, 'jamesbond11 "''i am bond 🚀''"', '0011', 'james11@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -52,7 +51,6 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         end
 
         described_class.play!(rows)
-
         # Expect row being added into shadow table
         expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
           {
@@ -64,7 +62,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
               "password" => "0010",
               "purchased" => "f",
               "seller_id" => "1",
-              "user_id" => "10",
+              "user_id" => "4",
               "username" => "jamesbond10 \"'i am bond 🚀'\"",
             }],
           },
@@ -91,7 +89,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
           {
             count: 1,
             data: [{
-              "username" => "jamesbond2",
+              "username" => "jamesbond3",
             }],
           },
         ])
@@ -121,9 +119,9 @@ RSpec.describe PgOnlineSchemaChange::Replay do
             data: [{
               "username" => "bondjames",
               "createdOn" => be_instance_of(String),
-              "email" => "james1@bond.com",
+              "email" => "james2@bond.com",
               "last_login" => be_instance_of(String),
-              "password" => "007",
+              "password" => "008",
               "purchased" => "f",
               "seller_id" => "1",
               "user_id" => "2",
@@ -146,7 +144,6 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         shadow_table_query = <<~SQL
           SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
-
         # Expect existing row being present in into shadow table
         expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
           {
@@ -291,10 +288,10 @@ RSpec.describe PgOnlineSchemaChange::Replay do
             data: [{
               "createdOn" => be_instance_of(String),
               "last_login" => be_instance_of(String),
-              "password" => "007",
+              "password" => "008",
               "seller_id" => "1",
               "user_id" => user_id.to_s,
-              "username" => "jamesbond2",
+              "username" => "jamesbond3",
             }],
           },
         ])
@@ -324,7 +321,7 @@ RSpec.describe PgOnlineSchemaChange::Replay do
             data: [{
               "createdOn" => be_instance_of(String),
               "last_login" => be_instance_of(String),
-              "password" => "007",
+              "password" => "008",
               "seller_id" => "1",
               "user_id" => user_id.to_s,
               "username" => "bondjames",
@@ -443,11 +440,11 @@ RSpec.describe PgOnlineSchemaChange::Replay do
             data: [{
               "createdOn" => be_instance_of(String),
               "last_login" => be_instance_of(String),
-              "password" => "007",
+              "password" => "008",
               "seller_id" => "1",
               "user_id" => user_id.to_s,
-              "username" => "jamesbond2",
-              "new_email" => "james1@bond.com",
+              "username" => "jamesbond3",
+              "new_email" => "james2@bond.com",
             }],
           },
         ])
@@ -477,11 +474,11 @@ RSpec.describe PgOnlineSchemaChange::Replay do
             data: [{
               "createdOn" => be_instance_of(String),
               "last_login" => be_instance_of(String),
-              "password" => "007",
+              "password" => "008",
               "seller_id" => "1",
               "user_id" => user_id.to_s,
               "username" => "bondjames",
-              "new_email" => "james1@bond.com",
+              "new_email" => "james2@bond.com",
             }],
           },
         ])

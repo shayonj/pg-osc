@@ -239,6 +239,7 @@ module PgOnlineSchemaChange
         Replay.play!(rows, opened)
 
         sql = <<~SQL
+          SELECT setval((select pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\')), (SELECT max(#{primary_key}) FROM #{client.table})+1);
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{referential_foreign_key_statements}

@@ -390,7 +390,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       # to audit table
       query = <<~SQL
         INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
-        VALUES(1, 1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+        VALUES(4, 1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
       SQL
       PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -427,7 +427,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
               "password" => "007",
               "purchased" => "f",
               "seller_id" => "1",
-              "user_id" => "2",
+              "user_id" => "1",
               "username" => "jamesbond2",
             },
             {
@@ -437,7 +437,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
               "password" => "008",
               "purchased" => "f",
               "seller_id" => "1",
-              "user_id" => "3",
+              "user_id" => "2",
               "username" => "jamesbond3",
             },
             {
@@ -447,7 +447,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
               "password" => "009",
               "purchased" => "f",
               "seller_id" => "1",
-              "user_id" => "4",
+              "user_id" => "3",
               "username" => "jamesbond4",
             },
           ],
@@ -483,7 +483,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                 "password" => "007",
                 "purchased" => "f",
                 "seller_id" => "1",
-                "user_id" => "2",
+                "user_id" => "1",
                 "username" => "jamesbond2",
               },
               {
@@ -493,7 +493,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                 "password" => "008",
                 "purchased" => "f",
                 "seller_id" => "1",
-                "user_id" => "3",
+                "user_id" => "2",
                 "username" => "jamesbond3",
               },
               {
@@ -503,7 +503,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                 "password" => "009",
                 "purchased" => "f",
                 "seller_id" => "1",
-                "user_id" => "4",
+                "user_id" => "3",
                 "username" => "jamesbond4",
               },
             ],
@@ -564,7 +564,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                 "createdOn" => be_instance_of(String),
                 "email" => "james1@bond.com",
                 "last_login" => be_instance_of(String),
-                "new_user_id" => "2",
+                "new_user_id" => "1",
                 "password" => "007",
                 "seller_id" => "1",
                 "username" => "jamesbond2",
@@ -573,7 +573,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                 "createdOn" => be_instance_of(String),
                 "email" => "james2@bond.com",
                 "last_login" => be_instance_of(String),
-                "new_user_id" => "3",
+                "new_user_id" => "2",
                 "password" => "008",
                 "seller_id" => "1",
                 "username" => "jamesbond3",
@@ -582,7 +582,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
                 "createdOn" => be_instance_of(String),
                 "email" => "james3@bond.com",
                 "last_login" => be_instance_of(String),
-                "new_user_id" => "4",
+                "new_user_id" => "3",
                 "password" => "009",
                 "seller_id" => "1",
                 "username" => "jamesbond4",
@@ -837,6 +837,24 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       expect(columns).to eq(["CREATE UNIQUE INDEX #{described_class.shadow_table}_pkey ON books USING btree (user_id)",
                              "CREATE UNIQUE INDEX #{described_class.shadow_table}_username_key ON books USING btree (username)",
                              "CREATE UNIQUE INDEX #{described_class.shadow_table}_email_key ON books USING btree (email)"])
+    end
+
+    it "sucessfully updates the PK sequence" do
+      described_class.swap!
+
+      # Fetch rows from the original primary table
+      select_query = <<~SQL
+        SELECT user_id FROM books ORDER BY user_id DESC LIMIT 1;
+      SQL
+      query = <<~SQL
+        INSERT INTO "books"("seller_id", "username", "password", "email", "createdOn", "last_login")
+        VALUES(1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+      SQL
+      PgOnlineSchemaChange::Query.run(client.connection, query)
+
+      expect_query_result(connection: client.connection, query: select_query, assertions: [
+        { count: 1, data: [{ "user_id" => "5" }] },
+      ])
     end
 
     it "sucessfully drops the trigger" do
