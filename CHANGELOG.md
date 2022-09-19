@@ -1,4 +1,8 @@
 
+## [0.7.2] - 2022-09-17
+* Update primary key sequence on shadow table https://github.com/shayonj/pg-osc/pull/72
+  - Thanks to @brycethornton for the report
+
 ## [0.7.1] - 2022-03-13
 * Bump pg to `1.3.4` https://github.com/shayonj/pg-osc/commit/d086c19d4f273dc960491cbedf9e0602d812896b
 
