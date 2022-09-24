@@ -1,4 +1,8 @@
 
+
+## [0.7.4] - 2022-09-24
+* off-by-one: Don't skip PK sequence value by one https://github.com/shayonj/pg-osc/pull/74
+
 ## [0.7.3] - 2022-09-24
 * Update primary key sequence on shadow table https://github.com/shayonj/pg-osc/pull/72
   - Thanks to @brycethornton for the report
