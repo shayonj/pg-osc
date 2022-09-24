@@ -238,8 +238,10 @@ module PgOnlineSchemaChange
         rows = Replay.rows_to_play(opened)
         Replay.play!(rows, opened)
 
+        query_for_primary_key_refresh = Query.query_for_primary_key_refresh(shadow_table, primary_key, client.table, opened)
+
         sql = <<~SQL
-          SELECT setval((select pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\')), (SELECT max(#{primary_key}) FROM #{client.table})+1);
+          #{query_for_primary_key_refresh};
           ALTER TABLE #{client.table} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table};
           #{referential_foreign_key_statements}
