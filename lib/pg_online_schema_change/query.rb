@@ -338,7 +338,7 @@ module PgOnlineSchemaChange
         return "" if sequence_name.nil?
 
         <<~SQL
-          SELECT setval((select pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\')), (SELECT max(#{primary_key}) FROM #{table})+1);
+          SELECT setval((select pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\')), (SELECT max(#{primary_key}) FROM #{table}));
         SQL
       end
     end
