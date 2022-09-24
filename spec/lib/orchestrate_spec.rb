@@ -840,20 +840,35 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     end
 
     it "sucessfully updates the PK sequence" do
+      select_query = <<~SQL
+        SELECT * FROM books;
+      SQL
+      expect_query_result(connection: client.connection, query: select_query, assertions: [
+        { count: 3 },
+      ])
+
       described_class.swap!
 
-      # Fetch rows from the original primary table
-      select_query = <<~SQL
-        SELECT user_id FROM books ORDER BY user_id DESC LIMIT 1;
-      SQL
       query = <<~SQL
         INSERT INTO "books"("seller_id", "username", "password", "email", "createdOn", "last_login")
         VALUES(1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
       SQL
       PgOnlineSchemaChange::Query.run(client.connection, query)
 
+      select_query = <<~SQL
+        SELECT * FROM books;
+      SQL
       expect_query_result(connection: client.connection, query: select_query, assertions: [
-        { count: 1, data: [{ "user_id" => "5" }] },
+        { count: 4 },
+      ])
+
+      # Fetch rows from the original primary table
+      select_query = <<~SQL
+        SELECT user_id FROM books ORDER BY user_id DESC LIMIT 1;
+      SQL
+
+      expect_query_result(connection: client.connection, query: select_query, assertions: [
+        { count: 1, data: [{ "user_id" => "4" }] },
       ])
     end
 
