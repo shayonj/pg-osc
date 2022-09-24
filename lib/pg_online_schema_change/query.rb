@@ -319,6 +319,28 @@ module PgOnlineSchemaChange
           FROM ONLY #{client.table}
         SQL
       end
+
+      def primary_key_sequence(shadow_table, primary_key, opened)
+        query = <<~SQL
+          SELECT pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\') as sequence_name
+        SQL
+
+        result = run(client.connection, query, opened)
+
+        result.map do |row|
+          row["sequence_name"]
+        end&.first
+      end
+
+      def query_for_primary_key_refresh(shadow_table, primary_key, table, opened)
+        sequence_name = primary_key_sequence(shadow_table, primary_key, opened)
+
+        return "" if sequence_name.nil?
+
+        <<~SQL
+          SELECT setval((select pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\')), (SELECT max(#{primary_key}) FROM #{table})+1);
+        SQL
+      end
     end
   end
 end
