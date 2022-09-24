@@ -1,5 +1,11 @@
 
+## [0.7.3] - 2022-09-24
+* Update primary key sequence on shadow table https://github.com/shayonj/pg-osc/pull/72
+  - Thanks to @brycethornton for the report
+* Only refresh primary key when a sequence is attached https://github.com/shayonj/pg-osc/pull/73
+
 ## [0.7.2] - 2022-09-17
+**NOTE: Skip to 0.7.3. 0.7.2 release missed the change.**
 * Update primary key sequence on shadow table https://github.com/shayonj/pg-osc/pull/72
   - Thanks to @brycethornton for the report
 
