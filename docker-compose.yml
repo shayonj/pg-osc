@@ -7,4 +7,3 @@ services:
     environment:
       POSTGRES_USER: jamesbond
       POSTGRES_DB: postgres
-
