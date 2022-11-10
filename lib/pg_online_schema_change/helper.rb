@@ -6,7 +6,7 @@ module PgOnlineSchemaChange
       result = Store.get(:primary_key)
       return result if result
 
-      Store.set(:primary_key, Query.primary_key_for(client, client.table))
+      Store.set(:primary_key, Query.primary_key_for(client, client.table_name))
     end
 
     def logger

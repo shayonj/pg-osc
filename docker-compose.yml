@@ -1,9 +1,10 @@
 version: '2'
 services:
   postgres:
-    image: postgres:9.6.2-alpine
+    image: postgres:12-alpine
     ports:
-      - "5432:5432"
+      - "6000:6000"
     environment:
       POSTGRES_USER: jamesbond
       POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
