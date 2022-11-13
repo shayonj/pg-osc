@@ -34,8 +34,6 @@ module PgOnlineSchemaChange
 
       @table = Query.table(@alter_statement)
       @table_name = Query.table_name(@alter_statement, @table)
-      puts @table
-      puts @table_name
 
       PgOnlineSchemaChange.logger.debug("Connection established")
     end

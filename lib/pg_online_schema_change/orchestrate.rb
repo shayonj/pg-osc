@@ -10,7 +10,6 @@ module PgOnlineSchemaChange
 
     class << self
       def setup!(options)
-        puts options
         client = Store.set(:client, Client.new(options))
 
         sql = <<~SQL

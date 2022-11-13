@@ -79,9 +79,26 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(described_class.table(query)).to eq("books")
     end
 
+    it "returns the table name for uppercase tables" do
+      query = "ALTER TABLE \"Books\" ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;"
+      expect(described_class.table(query)).to eq("Books")
+    end
+
     it "returns the table name for rename statements" do
       query = "ALTER TABLE books RENAME COLUMN \"email\" to \"new_email\";"
       expect(described_class.table(query)).to eq("books")
+    end
+  end
+
+  describe ".table_name" do
+    it "returns the table name for lowercase tables" do
+      query = "ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;"
+      expect(described_class.table(query)).to eq("books")
+    end
+
+    it "returns quoted table name for uppercase tables" do
+      query = "ALTER TABLE \"Books\" ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;"
+      expect(described_class.table_name(query, "Books")).to eq("\"Books\"")
     end
   end
 
