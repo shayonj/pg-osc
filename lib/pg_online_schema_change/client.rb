@@ -4,7 +4,7 @@ require "pg"
 
 module PgOnlineSchemaChange
   class Client
-    attr_accessor :alter_statement, :schema, :dbname, :host, :username, :port, :password, :connection, :table, :drop,
+    attr_accessor :alter_statement, :schema, :dbname, :host, :username, :port, :password, :connection, :table, :table_name, :drop,
                   :kill_backends, :wait_time_for_lock, :copy_statement, :pull_batch_count, :delta_count
 
     def initialize(options)
@@ -33,6 +33,7 @@ module PgOnlineSchemaChange
       )
 
       @table = Query.table(@alter_statement)
+      @table_name = Query.table_name(@alter_statement, @table)
 
       PgOnlineSchemaChange.logger.debug("Connection established")
     end

@@ -30,16 +30,16 @@ module PgOnlineSchemaChange
         # Set this early on to ensure their creation and cleanup (unexpected)
         # happens at all times. IOW, the calls from Store.get always return
         # the same value.
-        Store.set(:old_primary_table, "pgosc_op_table_#{client.table}")
-        Store.set(:audit_table, "pgosc_at_#{client.table}_#{pgosc_identifier}")
+        Store.set(:old_primary_table, "pgosc_op_table_#{client.table.downcase}")
+        Store.set(:audit_table, "pgosc_at_#{client.table.downcase}_#{pgosc_identifier}")
         Store.set(:operation_type_column, "operation_type_#{pgosc_identifier}")
         Store.set(:trigger_time_column, "trigger_time_#{pgosc_identifier}")
         Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
         Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
-        Store.set(:shadow_table, "pgosc_st_#{client.table}_#{pgosc_identifier}")
+        Store.set(:shadow_table, "pgosc_st_#{client.table.downcase}_#{pgosc_identifier}")
 
-        Store.set(:referential_foreign_key_statements, Query.referential_foreign_keys_to_refresh(client, client.table))
-        Store.set(:self_foreign_key_statements, Query.self_foreign_keys_to_refresh(client, client.table))
+        Store.set(:referential_foreign_key_statements, Query.referential_foreign_keys_to_refresh(client, client.table_name))
+        Store.set(:self_foreign_key_statements, Query.self_foreign_keys_to_refresh(client, client.table_name))
       end
 
       def run!(options)
@@ -98,7 +98,7 @@ module PgOnlineSchemaChange
         logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
-          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, #{trigger_time_column} timestamp, LIKE #{client.table});
+          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, #{trigger_time_column} timestamp, LIKE #{client.table_name});
         SQL
 
         Query.run(client.connection, sql)
@@ -108,14 +108,14 @@ module PgOnlineSchemaChange
         # acquire access exclusive lock to ensure audit triggers
         # are setup fine. This also calls kill_backends (if opted in via flag)
         # so any competing backends will be killed to setup the trigger
-        opened = Query.open_lock_exclusive(client, client.table)
+        opened = Query.open_lock_exclusive(client, client.table_name)
 
         raise AccessExclusiveLockNotAcquired unless opened
 
         logger.info("Setting up triggers")
 
         sql = <<~SQL
-          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table_name};
 
           CREATE OR REPLACE FUNCTION primary_to_audit_table_trigger()
           RETURNS TRIGGER AS
@@ -135,7 +135,7 @@ module PgOnlineSchemaChange
           $$ LANGUAGE PLPGSQL SECURITY DEFINER;
 
           CREATE TRIGGER primary_to_audit_table_trigger
-          AFTER INSERT OR UPDATE OR DELETE ON #{client.table}
+          AFTER INSERT OR UPDATE OR DELETE ON #{client.table_name}
           FOR EACH ROW EXECUTE PROCEDURE primary_to_audit_table_trigger();
         SQL
 
@@ -156,16 +156,16 @@ module PgOnlineSchemaChange
         Query.run(client.connection, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", true)
         logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
-        Query.run(client.connection, "SELECT create_table_all('#{client.table}', '#{shadow_table}');", true)
+        Query.run(client.connection, "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');", true)
 
         # update serials
-        Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table}', '#{shadow_table}');", true)
+        Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table_name}', '#{shadow_table}');", true)
       end
 
       def disable_vacuum!
         # re-uses transaction with serializable
         # Disabling vacuum to avoid any issues during the process
-        result = Query.storage_parameters_for(client, client.table, true) || ""
+        result = Query.storage_parameters_for(client, client.table_name, true) || ""
         Store.set(:primary_table_storage_parameters, result)
 
         logger.debug("Disabling vacuum on shadow and audit table",
@@ -186,7 +186,7 @@ module PgOnlineSchemaChange
         # re-uses transaction with serializable
         statement = Query.alter_statement_for(client, shadow_table)
         logger.info("Running alter statement on shadow table",
-                    { shadow_table: shadow_table, parent_table: client.table })
+                    { shadow_table: shadow_table, parent_table: client.table_name })
         Query.run(client.connection, statement, true)
 
         Store.set(:dropped_columns_list, Query.dropped_columns(client))
@@ -198,10 +198,10 @@ module PgOnlineSchemaChange
         # Begin the process to copy data into copy table
         # depending on the size of the table, this can be a time
         # taking operation.
-        logger.info("Clearing contents of audit table before copy..", { shadow_table: shadow_table, parent_table: client.table })
+        logger.info("Clearing contents of audit table before copy..", { shadow_table: shadow_table, parent_table: client.table_name })
         Query.run(client.connection, "DELETE FROM #{audit_table}", true)
 
-        logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table })
+        logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table_name })
         if client.copy_statement
           query = format(client.copy_statement, shadow_table: shadow_table)
           return Query.run(client.connection, query, true)
@@ -224,12 +224,12 @@ module PgOnlineSchemaChange
       def swap!
         logger.info("Performing swap!")
 
-        storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table} SET (#{primary_table_storage_parameters});"
+        storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table_name} SET (#{primary_table_storage_parameters});"
 
         # From here on, all statements are carried out in a single
         # transaction with access exclusive lock
 
-        opened = Query.open_lock_exclusive(client, client.table)
+        opened = Query.open_lock_exclusive(client, client.table_name)
 
         raise AccessExclusiveLockNotAcquired unless opened
 
@@ -238,16 +238,16 @@ module PgOnlineSchemaChange
         rows = Replay.rows_to_play(opened)
         Replay.play!(rows, opened)
 
-        query_for_primary_key_refresh = Query.query_for_primary_key_refresh(shadow_table, primary_key, client.table, opened)
+        query_for_primary_key_refresh = Query.query_for_primary_key_refresh(shadow_table, primary_key, client.table_name, opened)
 
         sql = <<~SQL
           #{query_for_primary_key_refresh};
-          ALTER TABLE #{client.table} RENAME to #{old_primary_table};
-          ALTER TABLE #{shadow_table} RENAME to #{client.table};
+          ALTER TABLE #{client.table_name} RENAME to #{old_primary_table};
+          ALTER TABLE #{shadow_table} RENAME to #{client.table_name};
           #{referential_foreign_key_statements}
           #{self_foreign_key_statements}
           #{storage_params_reset}
-          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table_name};
         SQL
 
         Query.run(client.connection, sql, opened)
@@ -259,13 +259,13 @@ module PgOnlineSchemaChange
       def run_analyze!
         logger.info("Performing ANALYZE!")
 
-        Query.run(client.connection, "ANALYZE VERBOSE #{client.table};")
+        Query.run(client.connection, "ANALYZE VERBOSE #{client.table_name};")
       end
 
       def validate_constraints!
         logger.info("Validating constraints!")
 
-        validate_statements = Query.get_foreign_keys_to_validate(client, client.table)
+        validate_statements = Query.get_foreign_keys_to_validate(client, client.table_name)
 
         Query.run(client.connection, validate_statements)
       end
@@ -276,7 +276,7 @@ module PgOnlineSchemaChange
         shadow_table_drop = shadow_table ? "DROP TABLE IF EXISTS #{shadow_table}" : ""
 
         sql = <<~SQL
-          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table};
+          DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table_name};
           #{audit_table_drop};
           #{shadow_table_drop};
           #{primary_drop}

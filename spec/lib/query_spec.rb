@@ -79,9 +79,26 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(described_class.table(query)).to eq("books")
     end
 
+    it "returns the table name for uppercase tables" do
+      query = "ALTER TABLE \"Books\" ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;"
+      expect(described_class.table(query)).to eq("Books")
+    end
+
     it "returns the table name for rename statements" do
       query = "ALTER TABLE books RENAME COLUMN \"email\" to \"new_email\";"
       expect(described_class.table(query)).to eq("books")
+    end
+  end
+
+  describe ".table_name" do
+    it "returns the table name for lowercase tables" do
+      query = "ALTER TABLE books ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;"
+      expect(described_class.table(query)).to eq("books")
+    end
+
+    it "returns quoted table name for uppercase tables" do
+      query = "ALTER TABLE \"Books\" ADD COLUMN \"purchased\" BOOLEAN DEFAULT FALSE;"
+      expect(described_class.table_name(query, "Books")).to eq("\"Books\"")
     end
   end
 
@@ -480,7 +497,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
           pg_attribute.attname as column_name
         FROM pg_index, pg_class, pg_attribute, pg_namespace
         WHERE
-          pg_class.oid = \'#{client.table}\'::regclass AND
+          pg_class.oid = \'#{client.table_name}\'::regclass AND
           indrelid = pg_class.oid AND
           nspname = \'#{client.schema}\' AND
           pg_class.relnamespace = pg_namespace.oid AND
@@ -493,7 +510,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       expect(client.connection).to receive(:async_exec).with(query).and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
 
-      result = described_class.primary_key_for(client, client.table)
+      result = described_class.primary_key_for(client, client.table_name)
       expect(result).to eq("user_id")
     end
   end
@@ -707,7 +724,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       pid = fork do
         new_client = PgOnlineSchemaChange::Client.new(client_options)
         setup_tables(new_client)
-        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;")
 
         sleep 50
       rescue StandardError => e
@@ -740,7 +757,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       pid = fork do
         new_client = PgOnlineSchemaChange::Client.new(client_options)
         setup_tables(new_client)
-        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;")
 
         sleep 50
       rescue StandardError
@@ -769,7 +786,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       pid = fork do
         new_client = PgOnlineSchemaChange::Client.new(client_options)
         setup_tables(new_client)
-        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;")
 
         sleep 10
       rescue StandardError
@@ -822,7 +839,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
       pid = fork do
         new_client = PgOnlineSchemaChange::Client.new(client_options)
         setup_tables(new_client)
-        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table} IN ACCESS EXCLUSIVE MODE;")
+        new_client.connection.async_exec("SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;")
 
         sleep 5
       rescue StandardError

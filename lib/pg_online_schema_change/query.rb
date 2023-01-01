@@ -42,6 +42,15 @@ module PgOnlineSchemaChange
         PgQuery.parse(query).tables[0] || from_rename_statement
       end
 
+      def table_name(query, table)
+        table_name = "\"#{table}\""
+        if table =~ /[A-Z]/ && (query.include? table_name) && table[0] != '"'
+          table_name
+        else
+          table
+        end
+      end
+
       def run(connection, query, reuse_trasaction = false, &block)
         connection.cancel if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
 
@@ -65,7 +74,7 @@ module PgOnlineSchemaChange
       def table_columns(client, table = nil, reuse_trasaction = false)
         sql = <<~SQL
           SELECT attname as column_name, format_type(atttypid, atttypmod) as type, attnum as column_position FROM   pg_attribute
-          WHERE  attrelid = \'#{table || client.table}\'::regclass AND attnum > 0 AND NOT attisdropped
+          WHERE  attrelid = \'#{table || client.table_name}\'::regclass AND attnum > 0 AND NOT attisdropped
           ORDER  BY attnum;
         SQL
         mapped_columns = []
@@ -255,7 +264,7 @@ module PgOnlineSchemaChange
 
         query = <<~SQL
           SET lock_timeout = '#{client.wait_time_for_lock}s';
-          LOCK TABLE #{client.table} IN ACCESS EXCLUSIVE MODE;
+          LOCK TABLE #{client.table_name} IN ACCESS EXCLUSIVE MODE;
         SQL
         run(client.connection, query, true)
 
@@ -289,7 +298,7 @@ module PgOnlineSchemaChange
       end
 
       def copy_data_statement(client, shadow_table, reuse_trasaction = false)
-        select_columns = table_columns(client, client.table, reuse_trasaction).map do |entry|
+        select_columns = table_columns(client, client.table_name, reuse_trasaction).map do |entry|
           entry["column_name_regular"]
         end
 
@@ -316,7 +325,7 @@ module PgOnlineSchemaChange
         <<~SQL
           INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")})
           SELECT #{select_columns.join(", ")}
-          FROM ONLY #{client.table}
+          FROM ONLY #{client.table_name}
         SQL
       end
 

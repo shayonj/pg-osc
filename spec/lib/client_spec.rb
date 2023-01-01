@@ -12,6 +12,7 @@ RSpec.describe PgOnlineSchemaChange::Client do
     expect(client.port).to eq(5432)
     expect(client.connection).to be_instance_of(PG::Connection)
     expect(client.table).to eq("books")
+    expect(client.table_name).to eq("books")
     expect(client.drop).to eq(false)
     expect(client.copy_statement).to eq(nil)
     expect(client.delta_count).to eq(20)
