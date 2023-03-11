@@ -12,13 +12,18 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
     it "sets the defaults & functions" do
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      query = <<~SQL
+        SELECT pg_get_triggerdef(oid) as tdef FROM pg_trigger
+        WHERE  tgrelid = \'#{client.schema}.books\'::regclass AND tgisinternal = FALSE;
+      SQL
 
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(7).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").exactly(8).times.and_call_original
       expect(client.connection).to receive(:async_exec).with(/convalidated AS constraint_validated/).and_call_original
       expect(client.connection).to receive(:async_exec).with("SET statement_timeout = 0;\nSET client_min_messages = warning;\nSET search_path TO #{client.schema};\n").and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_FIX_SERIAL_SEQUENCE).and_call_original
       expect(client.connection).to receive(:async_exec).with(FUNC_CREATE_TABLE_ALL).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(7).times.and_call_original
+      expect(client.connection).to receive(:async_exec).with(query).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").exactly(8).times.and_call_original
       expect(client.connection).to receive(:async_exec).with("SHOW statement_timeout;").and_call_original
       expect(client.connection).to receive(:async_exec).with("SHOW client_min_messages;").and_call_original
 
@@ -172,7 +177,7 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       SQL
       expect_query_result(connection: client.connection, query: query, assertions: [
         {
-          count: 1,
+          count: 2,
           data: ["tgname" => "primary_to_audit_table_trigger"],
         },
       ])
@@ -876,8 +881,9 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
       query = "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';"
       expect_query_result(connection: client.connection, query: query, assertions: [
         {
-          count: 3,
+          count: 4,
           data: [
+            { "trigger_name" => "email_changes" },
             { "trigger_name" => "primary_to_audit_table_trigger" },
             { "trigger_name" => "primary_to_audit_table_trigger" },
             { "trigger_name" => "primary_to_audit_table_trigger" },
@@ -888,7 +894,12 @@ RSpec.describe PgOnlineSchemaChange::Orchestrate do
 
       query = "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table ='#{client.table}';"
       expect_query_result(connection: client.connection, query: query, assertions: [
-        { count: 0 },
+        {
+          count: 1,
+          data: [
+            { "trigger_name" => "email_changes" },
+          ],
+        },
       ])
     end
 

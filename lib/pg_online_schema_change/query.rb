@@ -117,6 +117,20 @@ module PgOnlineSchemaChange
         indexes
       end
 
+      def get_triggers_for(client, table)
+        query = <<~SQL
+          SELECT pg_get_triggerdef(oid) as tdef FROM pg_trigger
+          WHERE  tgrelid = \'#{client.schema}.#{table}\'::regclass AND tgisinternal = FALSE;
+        SQL
+
+        triggers = []
+        run(client.connection, query) do |result|
+          triggers = result.map { |row| "#{row["tdef"]};" }
+        end
+
+        triggers.join(";")
+      end
+
       def get_all_constraints_for(client)
         query = <<~SQL
           SELECT  conrelid::regclass AS table_on,

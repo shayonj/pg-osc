@@ -243,36 +243,18 @@ RSpec.describe PgOnlineSchemaChange::Query do
 
     it "returns all constraints" do
       result = [
-        { "table_on" => "sellers",
-          "table_from" => "-",
-          "constraint_type" => "p",
-          "constraint_name" => "sellers_pkey",
-          "constraint_validated" => "t",
-          "definition" => "PRIMARY KEY (id)" },
-        { "table_on" => "books",
-          "table_from" => "-",
-          "constraint_type" => "p",
-          "constraint_name" => "books_pkey",
-          "constraint_validated" => "t",
-          "definition" => "PRIMARY KEY (user_id)" },
-        { "table_on" => "books",
-          "table_from" => "sellers",
-          "constraint_type" => "f",
-          "constraint_name" => "books_seller_id_fkey",
-          "constraint_validated" => "t",
-          "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
-        { "table_on" => "chapters",
-          "table_from" => "-",
-          "constraint_type" => "p",
-          "constraint_name" => "chapters_pkey",
-          "constraint_validated" => "t",
-          "definition" => "PRIMARY KEY (id)" },
-        { "table_on" => "chapters",
+        { "table_on" => "sellers", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "sellers_pkey", "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
+        { "table_on" => "books", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "books_pkey", "constraint_validated" => "t", "definition" => "PRIMARY KEY (user_id)" },
+        { "table_on" => "books", "table_from" => "sellers", "constraint_type" => "f", "constraint_name" => "books_seller_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (seller_id) REFERENCES sellers(id)" },
+        { "table_on" => "book_audits", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "book_audits_pkey", "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
+        { "table_on" => "book_audits",
           "table_from" => "books",
           "constraint_type" => "f",
-          "constraint_name" => "chapters_book_id_fkey",
+          "constraint_name" => "book_audits_book_id_fkey",
           "constraint_validated" => "t",
           "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
+        { "table_on" => "chapters", "table_from" => "-", "constraint_type" => "p", "constraint_name" => "chapters_pkey", "constraint_validated" => "t", "definition" => "PRIMARY KEY (id)" },
+        { "table_on" => "chapters", "table_from" => "books", "constraint_type" => "f", "constraint_name" => "chapters_book_id_fkey", "constraint_validated" => "t", "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)" },
       ]
 
       expect(described_class.get_all_constraints_for(client)).to eq(result)
@@ -335,7 +317,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
 
     let(:result) do
-      "ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;"
+      "ALTER TABLE book_audits DROP CONSTRAINT book_audits_book_id_fkey; ALTER TABLE book_audits ADD CONSTRAINT book_audits_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;ALTER TABLE chapters DROP CONSTRAINT chapters_book_id_fkey; ALTER TABLE chapters ADD CONSTRAINT chapters_book_id_fkey FOREIGN KEY (book_id) REFERENCES books(user_id) NOT VALID;" # rubocop:disable Layout/LineLength
     end
 
     before do
@@ -397,7 +379,7 @@ RSpec.describe PgOnlineSchemaChange::Query do
     end
 
     it "returns drop and add statements" do
-      result = "ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;ALTER TABLE books VALIDATE CONSTRAINT books_seller_id_fkey;"
+      result = "ALTER TABLE book_audits VALIDATE CONSTRAINT book_audits_book_id_fkey;ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;ALTER TABLE books VALIDATE CONSTRAINT books_seller_id_fkey;"
       expect(described_class.get_foreign_keys_to_validate(client, "books")).to eq(result)
     end
   end
@@ -477,6 +459,34 @@ RSpec.describe PgOnlineSchemaChange::Query do
         "CREATE UNIQUE INDEX books_username_key ON #{client.schema}.books USING btree (username)",
         "CREATE UNIQUE INDEX books_email_key ON #{client.schema}.books USING btree (email)",
       ])
+    end
+  end
+
+  describe ".get_triggers_for" do
+    before do
+      setup_tables(client)
+    end
+
+    let(:client) do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      client
+    end
+
+    it "returns trigger statements for the given table on client" do
+      query = <<~SQL
+        SELECT pg_get_triggerdef(oid) as tdef FROM pg_trigger
+        WHERE  tgrelid = \'#{client.schema}.books\'::regclass AND tgisinternal = FALSE;
+      SQL
+
+      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
+      expect(client.connection).to receive(:async_exec).with(query).and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
+
+      result = described_class.get_triggers_for(client, "books")
+      expect(result).to eq(
+        "CREATE TRIGGER email_changes AFTER UPDATE ON books FOR EACH ROW EXECUTE PROCEDURE public.email_changes();",
+      )
     end
   end
 
