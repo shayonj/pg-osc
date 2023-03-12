@@ -40,6 +40,7 @@ module PgOnlineSchemaChange
 
         Store.set(:referential_foreign_key_statements, Query.referential_foreign_keys_to_refresh(client, client.table_name))
         Store.set(:self_foreign_key_statements, Query.self_foreign_keys_to_refresh(client, client.table_name))
+        Store.set(:trigger_statements, Query.get_triggers_for(client, client.table_name))
       end
 
       def run!(options)
@@ -49,6 +50,7 @@ module PgOnlineSchemaChange
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
 
         setup_audit_table!
+
         setup_trigger!
         setup_shadow_table! # re-uses transaction with serializable
         disable_vacuum! # re-uses transaction with serializable
@@ -246,6 +248,7 @@ module PgOnlineSchemaChange
           ALTER TABLE #{shadow_table} RENAME to #{client.table_name};
           #{referential_foreign_key_statements}
           #{self_foreign_key_statements}
+          #{trigger_statements}
           #{storage_params_reset}
           DROP TRIGGER IF EXISTS primary_to_audit_table_trigger ON #{client.table_name};
         SQL

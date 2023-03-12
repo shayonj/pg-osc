@@ -45,10 +45,38 @@ module DatabaseHelpers
         last_login TIMESTAMP
       ) WITH (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000);
 
+      CREATE TABLE IF NOT EXISTS #{schema}.book_audits (
+        id serial PRIMARY KEY,
+        book_id SERIAL REFERENCES #{schema}.books NOT NULL,
+        changed_on TIMESTAMP(6) NOT NULL
+      );
+
+      CREATE OR REPLACE FUNCTION email_changes()
+        RETURNS TRIGGER
+        LANGUAGE PLPGSQL
+        AS
+      $$
+      BEGIN
+        IF NEW.email <> OLD.email THEN
+          INSERT INTO book_audits(book_id,changed_on)
+          VALUES(OLD.id,now());
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS email_changes on #{schema}.books;
+      CREATE TRIGGER email_changes
+      AFTER UPDATE
+      ON #{schema}.books
+      FOR EACH ROW
+      EXECUTE PROCEDURE email_changes();
+
       CREATE TABLE IF NOT EXISTS #{schema}.chapters (
         id serial PRIMARY KEY,
         name VARCHAR ( 50 ) UNIQUE NOT NULL,
         book_id SERIAL REFERENCES #{schema}.books NOT NULL,
+        book_name VARCHAR ( 50 ),
         "createdOn" TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
