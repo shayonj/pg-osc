@@ -234,6 +234,7 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
   - Can be fixed in future releases. Feel free to open a feature req.
 - Foreign keys are dropped & re-added to referencing tables with a `NOT VALID`. A follow on `VALIDATE CONSTRAINT` is run.
   - Ensures that integrity is maintained and re-introducing FKs doesn't acquire additional locks, hence the `NOT VALID`.
+- After the migration is complete any `views` will continue to reference the old shado table. Follow: https://github.com/shayonj/pg-osc/issues/81
 
 ## How does it work
 
