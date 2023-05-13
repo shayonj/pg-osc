@@ -1098,6 +1098,12 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       )
     end
 
+    it "sucessfully resets the autovacuum" do
+      described_class.swap!
+
+      expect(PgOnlineSchemaChange::Query.storage_parameters_for(client, client.table_name, true)).to eq("autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000")
+    end
+
     it "transfers the foreign keys from parent table" do
       described_class.swap!
 

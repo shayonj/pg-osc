@@ -247,16 +247,6 @@ module PgOnlineSchemaChange
 
       def swap!
         logger.info("Performing swap!")
-        puts primary_table_storage_parameters
-        storage_params_reset = "ALTER TABLE #{client.table_name} RESET (autovacuum_enabled, toast.autovacuum_enabled);" +
-          (
-            if primary_table_storage_parameters.empty?
-              ""
-            else
-              "ALTER TABLE #{client.table_name} SET (#{primary_table_storage_parameters});"
-            end
-          )
-
         # From here on, all statements are carried out in a single
         # transaction with access exclusive lock
 
@@ -329,6 +319,17 @@ module PgOnlineSchemaChange
 
       def pgosc_identifier
         @pgosc_identifier ||= SecureRandom.hex(3)
+      end
+
+      def storage_params_reset
+        "ALTER TABLE #{client.table_name} RESET (autovacuum_enabled, toast.autovacuum_enabled);" +
+          (
+            if primary_table_storage_parameters.empty?
+              ""
+            else
+              "ALTER TABLE #{client.table_name} SET (#{primary_table_storage_parameters});"
+            end
+          )
       end
     end
   end
