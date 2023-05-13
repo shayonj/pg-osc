@@ -1,3 +1,7 @@
+## [0.8.1] - 2023-05-13
+
+- Gem path and CI fixes
+
 ## [0.8.0] - 2023-05-13
 
 - Ruby 3.1.3 and prettier/ruby https://github.com/shayonj/pg-osc/pull/83
