@@ -248,12 +248,12 @@ module PgOnlineSchemaChange
       def swap!
         logger.info("Performing swap!")
         puts primary_table_storage_parameters
-        storage_params_reset =
+        storage_params_reset = "ALTER TABLE #{client.table_name} RESET (autovacuum_enabled, toast.autovacuum_enabled);" +
           (
             if primary_table_storage_parameters.empty?
-              "ALTER TABLE #{shadow_table} RESET (autovacuum_enabled, toast.autovacuum_enabled);"
+              ""
             else
-              "ALTER TABLE #{shadow_table} SET (#{primary_table_storage_parameters});"
+              "ALTER TABLE #{client.table_name} SET (#{primary_table_storage_parameters});"
             end
           )
 
