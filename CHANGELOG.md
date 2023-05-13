@@ -1,3 +1,9 @@
+## [0.8.0] - 2023-05-13
+
+- Ruby 3.1.3 and prettier/ruby https://github.com/shayonj/pg-osc/pull/83
+- Ruby matrix in ci and require ruby 2.7+ https://github.com/shayonj/pg-osc/pull/84
+- Re-enable autovacuum by @jfrost https://github.com/shayonj/pg-osc/pull/85
+
 ## [0.7.5] - 2023-03-12
 
 - Bump google-protobuf from 3.21.6 to 3.21.7 https://github.com/shayonj/pg-osc/pull/76
