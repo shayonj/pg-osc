@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe PgOnlineSchemaChange::Replay do
+RSpec.describe(PgOnlineSchemaChange::Replay) do
   describe ".play!" do
     describe "when alter adds a column" do
       let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
@@ -28,9 +28,11 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         SQL
 
         # Expect new row not present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [{ count: 0 }],
+        )
         # Add an entry for the trigger
         query = <<~SQL
           INSERT INTO "books"("seller_id", "username", "password", "email", "createdOn", "last_login")
@@ -52,29 +54,37 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
         described_class.play!(rows)
         # Expect row being added into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "email" => "james10@bond.com",
-              "last_login" => be_instance_of(String),
-              "password" => "0010",
-              "purchased" => "f",
-              "seller_id" => "1",
-              "user_id" => "4",
-              "username" => "jamesbond10 \"'i am bond 🚀'\"",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [
+            {
+              count: 1,
+              data: [
+                {
+                  "createdOn" => be_instance_of(String),
+                  "email" => "james10@bond.com",
+                  "last_login" => be_instance_of(String),
+                  "password" => "0010",
+                  "purchased" => "f",
+                  "seller_id" => "1",
+                  "user_id" => "4",
+                  "username" => "jamesbond10 \"'i am bond 🚀'\"",
+                },
+              ],
+            },
+          ],
+        )
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
 
       it "replays UPDATE data" do
@@ -85,19 +95,16 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         SQL
 
         # Expect existing row being present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "username" => "jamesbond3",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [{ count: 1, data: [{ "username" => "jamesbond3" }] }],
+        )
 
         # Update an entry for the trigger
         query = <<~SQL
           UPDATE books SET username = 'bondjames'
-          WHERE user_id=\'#{user_id}\';
+          WHERE user_id='#{user_id}';
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -113,29 +120,37 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         described_class.play!(rows)
 
         # Expect row being added into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "username" => "bondjames",
-              "createdOn" => be_instance_of(String),
-              "email" => "james2@bond.com",
-              "last_login" => be_instance_of(String),
-              "password" => "008",
-              "purchased" => "f",
-              "seller_id" => "1",
-              "user_id" => "2",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [
+            {
+              count: 1,
+              data: [
+                {
+                  "username" => "bondjames",
+                  "createdOn" => be_instance_of(String),
+                  "email" => "james2@bond.com",
+                  "last_login" => be_instance_of(String),
+                  "password" => "008",
+                  "purchased" => "f",
+                  "seller_id" => "1",
+                  "user_id" => "2",
+                },
+              ],
+            },
+          ],
+        )
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
 
       it "replays DELETE data and cleanups the rows in audit table after" do
@@ -145,27 +160,27 @@ RSpec.describe PgOnlineSchemaChange::Replay do
           SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
         # Expect existing row being present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [{ count: 1 }],
+        )
 
         # Delete an entry for the trigger
         query = <<~SQL
-          DELETE FROM books WHERE user_id=\'#{user_id}\';
+          DELETE FROM books WHERE user_id='#{user_id}';
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
         # Expect row being added to the audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          {
-            count: 1,
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 1 }],
+        )
 
         # Fetch rows
         select_query = <<~SQL
@@ -179,25 +194,27 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         described_class.play!(rows)
 
         # Expect row not being present in shadow table anymore
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [{ count: 0 }],
+        )
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
     end
 
     describe "when alter removes a column" do
       let(:client) do
-        options = client_options.to_h.merge(
-          alter_statement: "ALTER TABLE books DROP \"email\";",
-        )
+        options = client_options.to_h.merge(alter_statement: "ALTER TABLE books DROP \"email\";")
         client_options = Struct.new(*options.keys).new(*options.values)
 
         PgOnlineSchemaChange::Client.new(client_options)
@@ -228,9 +245,11 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         SQL
 
         # Expect new row not present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [{ count: 0 }],
+        )
 
         # Add an entry for the trigger
         query = <<~SQL
@@ -251,27 +270,35 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         described_class.play!(rows)
 
         # Expect row being added into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "last_login" => be_instance_of(String),
-              "password" => "0010",
-              "seller_id" => "1",
-              "user_id" => "10",
-              "username" => "jamesbond10",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [
+            {
+              count: 1,
+              data: [
+                {
+                  "createdOn" => be_instance_of(String),
+                  "last_login" => be_instance_of(String),
+                  "password" => "0010",
+                  "seller_id" => "1",
+                  "user_id" => "10",
+                  "username" => "jamesbond10",
+                },
+              ],
+            },
+          ],
+        )
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
 
       it "replays UPDATE data" do
@@ -282,24 +309,30 @@ RSpec.describe PgOnlineSchemaChange::Replay do
           SELECT * from #{described_class.shadow_table} WHERE #{described_class.primary_key}=#{user_id};
         SQL
         # Expect existing row being present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "last_login" => be_instance_of(String),
-              "password" => "008",
-              "seller_id" => "1",
-              "user_id" => user_id.to_s,
-              "username" => "jamesbond3",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [
+            {
+              count: 1,
+              data: [
+                {
+                  "createdOn" => be_instance_of(String),
+                  "last_login" => be_instance_of(String),
+                  "password" => "008",
+                  "seller_id" => "1",
+                  "user_id" => user_id.to_s,
+                  "username" => "jamesbond3",
+                },
+              ],
+            },
+          ],
+        )
 
         # Update an entry for the trigger
         query = <<~SQL
           UPDATE books SET username = 'bondjames'
-          WHERE user_id=\'#{user_id}\';
+          WHERE user_id='#{user_id}';
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -315,35 +348,44 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         described_class.play!(rows)
 
         # Expect row being added into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "last_login" => be_instance_of(String),
-              "password" => "008",
-              "seller_id" => "1",
-              "user_id" => user_id.to_s,
-              "username" => "bondjames",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [
+            {
+              count: 1,
+              data: [
+                {
+                  "createdOn" => be_instance_of(String),
+                  "last_login" => be_instance_of(String),
+                  "password" => "008",
+                  "seller_id" => "1",
+                  "user_id" => user_id.to_s,
+                  "username" => "bondjames",
+                },
+              ],
+            },
+          ],
+        )
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
     end
 
     describe "when alter renames a column" do
       let(:client) do
-        options = client_options.to_h.merge(
-          alter_statement: "ALTER TABLE books RENAME email to new_email ;",
-        )
+        options =
+          client_options.to_h.merge(
+            alter_statement: "ALTER TABLE books RENAME email to new_email ;",
+          )
         client_options = Struct.new(*options.keys).new(*options.values)
 
         PgOnlineSchemaChange::Client.new(client_options)
@@ -366,8 +408,9 @@ RSpec.describe PgOnlineSchemaChange::Replay do
 
       it "replays INSERT data" do
         expect(described_class.dropped_columns_list).to eq([])
-        expect(described_class.renamed_columns_list).to eq([{ old_name: "email",
-                                                              new_name: "new_email" }])
+        expect(described_class.renamed_columns_list).to eq(
+          [{ old_name: "email", new_name: "new_email" }],
+        )
 
         user_id = 10
         shadow_table_query = <<~SQL
@@ -375,9 +418,11 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         SQL
 
         # Expect new row not present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [{ count: 0 }],
+        )
 
         # Add an entry for the trigger
         query = <<~SQL
@@ -398,35 +443,45 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         described_class.play!(rows)
 
         # Expect row being added into shadow table
-        shadow_rows = expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "last_login" => be_instance_of(String),
-              "password" => "0010",
-              "seller_id" => "1",
-              "user_id" => "10",
-              "username" => "jamesbond10",
-              "new_email" => "james10@bond.com",
-            }],
-          },
-        ])
-        expect(shadow_rows.first["email"]).to eq(nil)
+        shadow_rows =
+          expect_query_result(
+            connection: client.connection,
+            query: shadow_table_query,
+            assertions: [
+              {
+                count: 1,
+                data: [
+                  {
+                    "createdOn" => be_instance_of(String),
+                    "last_login" => be_instance_of(String),
+                    "password" => "0010",
+                    "seller_id" => "1",
+                    "user_id" => "10",
+                    "username" => "jamesbond10",
+                    "new_email" => "james10@bond.com",
+                  },
+                ],
+              },
+            ],
+          )
+        expect(shadow_rows.first["email"]).to be_nil
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
 
       it "replays UPDATE data" do
         expect(described_class.dropped_columns_list).to eq([])
-        expect(described_class.renamed_columns_list).to eq([{ old_name: "email",
-                                                              new_name: "new_email" }])
+        expect(described_class.renamed_columns_list).to eq(
+          [{ old_name: "email", new_name: "new_email" }],
+        )
 
         user_id = 2
         shadow_table_query = <<~SQL
@@ -434,25 +489,31 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         SQL
 
         # Expect existing row being present in into shadow table
-        expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "last_login" => be_instance_of(String),
-              "password" => "008",
-              "seller_id" => "1",
-              "user_id" => user_id.to_s,
-              "username" => "jamesbond3",
-              "new_email" => "james2@bond.com",
-            }],
-          },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: shadow_table_query,
+          assertions: [
+            {
+              count: 1,
+              data: [
+                {
+                  "createdOn" => be_instance_of(String),
+                  "last_login" => be_instance_of(String),
+                  "password" => "008",
+                  "seller_id" => "1",
+                  "user_id" => user_id.to_s,
+                  "username" => "jamesbond3",
+                  "new_email" => "james2@bond.com",
+                },
+              ],
+            },
+          ],
+        )
 
         # Update an entry for the trigger
         query = <<~SQL
           UPDATE books SET username = 'bondjames'
-          WHERE user_id=\'#{user_id}\';
+          WHERE user_id='#{user_id}';
         SQL
         PgOnlineSchemaChange::Query.run(client.connection, query)
 
@@ -468,29 +529,38 @@ RSpec.describe PgOnlineSchemaChange::Replay do
         described_class.play!(rows)
 
         # Expect row being added into shadow table
-        shadow_rows = expect_query_result(connection: client.connection, query: shadow_table_query, assertions: [
-          {
-            count: 1,
-            data: [{
-              "createdOn" => be_instance_of(String),
-              "last_login" => be_instance_of(String),
-              "password" => "008",
-              "seller_id" => "1",
-              "user_id" => user_id.to_s,
-              "username" => "bondjames",
-              "new_email" => "james2@bond.com",
-            }],
-          },
-        ])
-        expect(shadow_rows.first["email"]).to eq(nil)
+        shadow_rows =
+          expect_query_result(
+            connection: client.connection,
+            query: shadow_table_query,
+            assertions: [
+              {
+                count: 1,
+                data: [
+                  {
+                    "createdOn" => be_instance_of(String),
+                    "last_login" => be_instance_of(String),
+                    "password" => "008",
+                    "seller_id" => "1",
+                    "user_id" => user_id.to_s,
+                    "username" => "bondjames",
+                    "new_email" => "james2@bond.com",
+                  },
+                ],
+              },
+            ],
+          )
+        expect(shadow_rows.first["email"]).to be_nil
 
         # Expect row being removed from audit table
         audit_table_query = <<~SQL
-          SELECT * from \"#{described_class.audit_table}\" WHERE #{described_class.primary_key}=#{user_id};
+          SELECT * from "#{described_class.audit_table}" WHERE #{described_class.primary_key}=#{user_id};
         SQL
-        expect_query_result(connection: client.connection, query: audit_table_query, assertions: [
-          { count: 0 },
-        ])
+        expect_query_result(
+          connection: client.connection,
+          query: audit_table_query,
+          assertions: [{ count: 0 }],
+        )
       end
     end
   end

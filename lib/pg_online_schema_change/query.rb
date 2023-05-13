@@ -14,21 +14,31 @@ module PgOnlineSchemaChange
 
     class << self
       def alter_statement?(query)
-        PgQuery.parse(query).tree.stmts.all? do |statement|
-          statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt) || statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
-        end
+        PgQuery
+          .parse(query)
+          .tree
+          .stmts
+          .all? do |statement|
+            statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt) ||
+              statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
+          end
       rescue PgQuery::ParseError
         false
       end
 
       def same_table?(query)
-        tables = PgQuery.parse(query).tree.stmts.filter_map do |statement|
-          if statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt)
-            statement.stmt.alter_table_stmt.relation.relname
-          elsif statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
-            statement.stmt.rename_stmt.relation.relname
-          end
-        end
+        tables =
+          PgQuery
+            .parse(query)
+            .tree
+            .stmts
+            .filter_map do |statement|
+              if statement.stmt.alter_table_stmt.instance_of?(PgQuery::AlterTableStmt)
+                statement.stmt.alter_table_stmt.relation.relname
+              elsif statement.stmt.rename_stmt.instance_of?(PgQuery::RenameStmt)
+                statement.stmt.rename_stmt.relation.relname
+              end
+            end
 
         tables.uniq.count == 1
       rescue PgQuery::ParseError
@@ -36,15 +46,20 @@ module PgOnlineSchemaChange
       end
 
       def table(query)
-        from_rename_statement = PgQuery.parse(query).tree.stmts.filter_map do |statement|
-          statement.stmt.rename_stmt&.relation&.relname
-        end[0]
+        from_rename_statement =
+          PgQuery
+            .parse(query)
+            .tree
+            .stmts
+            .filter_map { |statement| statement.stmt.rename_stmt&.relation&.relname }[
+            0
+          ]
         PgQuery.parse(query).tables[0] || from_rename_statement
       end
 
       def table_name(query, table)
         table_name = "\"#{table}\""
-        if table =~ /[A-Z]/ && (query.include? table_name) && table[0] != '"'
+        if table =~ /[A-Z]/ && query.include?(table_name) && table[0] != '"'
           table_name
         else
           table
@@ -52,7 +67,9 @@ module PgOnlineSchemaChange
       end
 
       def run(connection, query, reuse_trasaction = false, &block)
-        connection.cancel if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
+        if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
+          connection.cancel
+        end
 
         logger.debug("Running query", { query: query })
 
@@ -74,18 +91,19 @@ module PgOnlineSchemaChange
       def table_columns(client, table = nil, reuse_trasaction = false)
         sql = <<~SQL
           SELECT attname as column_name, format_type(atttypid, atttypmod) as type, attnum as column_position FROM   pg_attribute
-          WHERE  attrelid = \'#{table || client.table_name}\'::regclass AND attnum > 0 AND NOT attisdropped
+          WHERE  attrelid = '#{table || client.table_name}'::regclass AND attnum > 0 AND NOT attisdropped
           ORDER  BY attnum;
         SQL
         mapped_columns = []
 
         run(client.connection, sql, reuse_trasaction) do |result|
-          mapped_columns = result.map do |row|
-            row["column_name_regular"] = row["column_name"]
-            row["column_name"] = client.connection.quote_ident(row["column_name"])
-            row["column_position"] = row["column_position"].to_i
-            row
-          end
+          mapped_columns =
+            result.map do |row|
+              row["column_name_regular"] = row["column_name"]
+              row["column_name"] = client.connection.quote_ident(row["column_name"])
+              row["column_position"] = row["column_position"].to_i
+              row
+            end
         end
 
         mapped_columns
@@ -95,7 +113,9 @@ module PgOnlineSchemaChange
         parsed_query = PgQuery.parse(client.alter_statement)
 
         parsed_query.tree.stmts.each do |statement|
-          statement.stmt.alter_table_stmt.relation.relname = shadow_table if statement.stmt.alter_table_stmt
+          if statement.stmt.alter_table_stmt
+            statement.stmt.alter_table_stmt.relation.relname = shadow_table
+          end
 
           statement.stmt.rename_stmt.relation.relname = shadow_table if statement.stmt.rename_stmt
         end
@@ -106,13 +126,11 @@ module PgOnlineSchemaChange
         query = <<~SQL
           SELECT indexdef, schemaname
           FROM pg_indexes
-          WHERE schemaname = \'#{client.schema}\' AND tablename = \'#{table}\'
+          WHERE schemaname = '#{client.schema}' AND tablename = '#{table}'
         SQL
 
         indexes = []
-        run(client.connection, query) do |result|
-          indexes = result.map { |row| row["indexdef"] }
-        end
+        run(client.connection, query) { |result| indexes = result.map { |row| row["indexdef"] } }
 
         indexes
       end
@@ -120,13 +138,11 @@ module PgOnlineSchemaChange
       def get_triggers_for(client, table)
         query = <<~SQL
           SELECT pg_get_triggerdef(oid) as tdef FROM pg_trigger
-          WHERE  tgrelid = \'#{client.schema}.#{table}\'::regclass AND tgisinternal = FALSE;
+          WHERE  tgrelid = '#{client.schema}.#{table}'::regclass AND tgisinternal = FALSE;
         SQL
 
         triggers = []
-        run(client.connection, query) do |result|
-          triggers = result.map { |row| "#{row["tdef"]};" }
-        end
+        run(client.connection, query) { |result| triggers = result.map { |row| "#{row["tdef"]};" } }
 
         triggers.join(";")
       end
@@ -144,9 +160,7 @@ module PgOnlineSchemaChange
         SQL
 
         constraints = []
-        run(client.connection, query) do |result|
-          constraints = result.map { |row| row }
-        end
+        run(client.connection, query) { |result| constraints = result.map { |row| row } }
 
         constraints
       end
@@ -164,72 +178,93 @@ module PgOnlineSchemaChange
       end
 
       def referential_foreign_keys_to_refresh(client, table)
-        references = get_all_constraints_for(client).select do |row|
-          row["table_from"] == table && row["constraint_type"] == "f"
-        end
+        references =
+          get_all_constraints_for(client).select do |row|
+            row["table_from"] == table && row["constraint_type"] == "f"
+          end
 
-        references.map do |row|
-          add_statement = if row["definition"].end_with?("NOT VALID")
-                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
-                          else
-                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
-                          end
+        references
+          .map do |row|
+            add_statement =
+              if row["definition"].end_with?("NOT VALID")
+                "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+              else
+                "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+              end
 
-          drop_statement = "ALTER TABLE #{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
+            drop_statement =
+              "ALTER TABLE #{row["table_on"]} DROP CONSTRAINT #{row["constraint_name"]};"
 
-          "#{drop_statement} #{add_statement}"
-        end.join
+            "#{drop_statement} #{add_statement}"
+          end
+          .join
       end
 
       def self_foreign_keys_to_refresh(client, table)
-        references = get_all_constraints_for(client).select do |row|
-          row["table_on"] == table && row["constraint_type"] == "f"
-        end
+        references =
+          get_all_constraints_for(client).select do |row|
+            row["table_on"] == table && row["constraint_type"] == "f"
+          end
 
-        references.map do |row|
-          add_statement = if row["definition"].end_with?("NOT VALID")
-                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
-                          else
-                            "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
-                          end
-          add_statement
-        end.join
+        references
+          .map do |row|
+            add_statement =
+              if row["definition"].end_with?("NOT VALID")
+                "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]};"
+              else
+                "ALTER TABLE #{row["table_on"]} ADD CONSTRAINT #{row["constraint_name"]} #{row["definition"]} NOT VALID;"
+              end
+            add_statement
+          end
+          .join
       end
 
       def get_foreign_keys_to_validate(client, table)
         constraints = get_all_constraints_for(client)
-        referential_foreign_keys = constraints.select do |row|
-          row["table_from"] == table && row["constraint_type"] == "f"
-        end
+        referential_foreign_keys =
+          constraints.select { |row| row["table_from"] == table && row["constraint_type"] == "f" }
 
-        self_foreign_keys = constraints.select do |row|
-          row["table_on"] == table && row["constraint_type"] == "f"
-        end
+        self_foreign_keys =
+          constraints.select { |row| row["table_on"] == table && row["constraint_type"] == "f" }
 
-        [referential_foreign_keys, self_foreign_keys].flatten.map do |row|
-          "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
-        end.join
+        [referential_foreign_keys, self_foreign_keys].flatten
+          .map do |row|
+            "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
+          end
+          .join
       end
 
       def dropped_columns(client)
-        PgQuery.parse(client.alter_statement).tree.stmts.map do |statement|
-          next if statement.stmt.alter_table_stmt.nil?
+        PgQuery
+          .parse(client.alter_statement)
+          .tree
+          .stmts
+          .map do |statement|
+            next if statement.stmt.alter_table_stmt.nil?
 
-          statement.stmt.alter_table_stmt.cmds.map do |cmd|
-            cmd.alter_table_cmd.name if cmd.alter_table_cmd.subtype == DROPPED_COLUMN_TYPE
+            statement.stmt.alter_table_stmt.cmds.map do |cmd|
+              cmd.alter_table_cmd.name if cmd.alter_table_cmd.subtype == DROPPED_COLUMN_TYPE
+            end
           end
-        end.flatten.compact
+          .flatten
+          .compact
       end
 
       def renamed_columns(client)
-        PgQuery.parse(client.alter_statement).tree.stmts.map do |statement|
-          next if statement.stmt.rename_stmt.nil?
+        PgQuery
+          .parse(client.alter_statement)
+          .tree
+          .stmts
+          .map do |statement|
+            next if statement.stmt.rename_stmt.nil?
 
-          {
-            old_name: statement.stmt.rename_stmt.subname,
-            new_name: statement.stmt.rename_stmt.newname,
-          }
-        end.flatten.compact
+            {
+              old_name: statement.stmt.rename_stmt.subname,
+              new_name: statement.stmt.rename_stmt.newname,
+            }
+          end
+          .flatten
+          .compact
       end
 
       def primary_key_for(client, table)
@@ -238,9 +273,9 @@ module PgOnlineSchemaChange
             pg_attribute.attname as column_name
           FROM pg_index, pg_class, pg_attribute, pg_namespace
           WHERE
-            pg_class.oid = \'#{table}\'::regclass AND
+            pg_class.oid = '#{table}'::regclass AND
             indrelid = pg_class.oid AND
-            nspname = \'#{client.schema}\' AND
+            nspname = '#{client.schema}' AND
             pg_class.relnamespace = pg_namespace.oid AND
             pg_attribute.attrelid = pg_class.oid AND
             pg_attribute.attnum = any(pg_index.indkey)
@@ -248,16 +283,14 @@ module PgOnlineSchemaChange
         SQL
 
         columns = []
-        run(client.connection, query) do |result|
-          columns = result.map { |row| row["column_name"] }
-        end
+        run(client.connection, query) { |result| columns = result.map { |row| row["column_name"] } }
 
         columns.first
       end
 
       def storage_parameters_for(client, table, reuse_trasaction = false)
         query = <<~SQL
-          SELECT array_to_string(reloptions, ',') as params FROM pg_class WHERE relname=\'#{table}\';
+          SELECT array_to_string(reloptions, ',') as params FROM pg_class WHERE relname='#{table}';
         SQL
 
         columns = []
@@ -305,16 +338,17 @@ module PgOnlineSchemaChange
         logger.info("Terminating other backends")
 
         query = <<~SQL
-          SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'relation' AND relation = \'#{table}\'::regclass::oid AND pid <> pg_backend_pid()
+          SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'relation' AND relation = '#{table}'::regclass::oid AND pid <> pg_backend_pid()
         SQL
 
         run(client.connection, query, true)
       end
 
       def copy_data_statement(client, shadow_table, reuse_trasaction = false)
-        select_columns = table_columns(client, client.table_name, reuse_trasaction).map do |entry|
-          entry["column_name_regular"]
-        end
+        select_columns =
+          table_columns(client, client.table_name, reuse_trasaction).map do |entry|
+            entry["column_name_regular"]
+          end
 
         select_columns -= dropped_columns_list if dropped_columns_list.any?
 
@@ -332,9 +366,7 @@ module PgOnlineSchemaChange
           client.connection.quote_ident(insert_into_column)
         end
 
-        select_columns.map! do |select_column|
-          client.connection.quote_ident(select_column)
-        end
+        select_columns.map! { |select_column| client.connection.quote_ident(select_column) }
 
         <<~SQL
           INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")})
@@ -345,14 +377,12 @@ module PgOnlineSchemaChange
 
       def primary_key_sequence(shadow_table, primary_key, opened)
         query = <<~SQL
-          SELECT pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\') as sequence_name
+          SELECT pg_get_serial_sequence('#{shadow_table}', '#{primary_key}') as sequence_name
         SQL
 
         result = run(client.connection, query, opened)
 
-        result.map do |row|
-          row["sequence_name"]
-        end&.first
+        result.map { |row| row["sequence_name"] }&.first
       end
 
       def query_for_primary_key_refresh(shadow_table, primary_key, table, opened)
@@ -361,7 +391,7 @@ module PgOnlineSchemaChange
         return "" if sequence_name.nil?
 
         <<~SQL
-          SELECT setval((select pg_get_serial_sequence(\'#{shadow_table}\', \'#{primary_key}\')), (SELECT max(#{primary_key}) FROM #{table}));
+          SELECT setval((select pg_get_serial_sequence('#{shadow_table}', '#{primary_key}')), (SELECT max(#{primary_key}) FROM #{table}));
         SQL
       end
     end

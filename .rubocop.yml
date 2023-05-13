@@ -2,131 +2,260 @@ inherit_from: .rubocop_todo.yml
 
 require:
   - rubocop-rspec
-  - rubocop-packaging
-  - rubocop-performance
   - rubocop-rake
 
+inherit_mode:
+  merge:
+    - Include
+    - Exclude
+    - AllowedMethods
+
 AllCops:
-  DisplayCopNames: true
-  DisplayStyleGuide: true
   NewCops: enable
-  TargetRubyVersion: 2.6
   Exclude:
-    - "tmp/**/*"
-    - "vendor/**/*"
+    - "**/.git/**/*"
+    - "**/node_modules/**/*"
+    - "**/Brewfile"
+  TargetRubyVersion: 3.1
 
-Layout/HashAlignment:
-  EnforcedColonStyle: key
-  EnforcedHashRocketStyle:  key
+Bundler/OrderedGems:
+  Include:
+    - "**/Gemfile"
 
-Layout/SpaceAroundEqualsInParameterDefault:
-  EnforcedStyle: space
+Style/FrozenStringLiteralComment:
+  EnforcedStyle: always
 
-Metrics/AbcSize:
+Style/MutableConstant:
+  EnforcedStyle: literals
+
+Style/MethodCallWithArgsParentheses:
   Enabled: true
-  Max: 45
+  EnforcedStyle: require_parentheses
+  AllowedMethods:
+    - yield
+    - raise
+    - fail
+    - puts
+    - require
+    - require_relative
+    - render
+    - redirect_to
+    - head
+    - throw
+    # RSpec
+    - to
+    - not_to
+    - to_not
+    - and
+    - or
   Exclude:
-    - "spec/**/*"
+    - "**/Gemfile"
+    - "**/db/migrate/*"
+    - "**/db/schema.rb"
 
-Metrics/BlockLength:
-  Max: 100
-  Exclude:
-    - "*.gemspec"
-    - "Rakefile"
-    - "spec/**/*"
+Style/RedundantInitialize:
+  Enabled: false
 
-Metrics/ClassLength:
-  Exclude:
-    - "test/**/*"
+Layout:
+  Enabled: false
 
-Metrics/MethodLength:
-  Max: 30
-  Exclude:
-    - "test/**/*"
+Metrics:
+  Enabled: false
 
-Metrics/ParameterLists:
-  Max: 5
+Naming/AccessorMethodName:
+  Enabled: false
 
-Naming/MemoizedInstanceVariableName:
-  Enabled: true
+Naming/MethodParameterName:
+  Enabled: false
+
+Naming/PredicateName:
+  Enabled: false
 
 Naming/VariableNumber:
-  Enabled: true
+  Enabled: false
 
-Style/BarePercentLiterals:
-  EnforcedStyle: percent_q
+Style/AsciiComments:
+  Enabled: false
+
+Style/BlockDelimiters:
+  Enabled: false
+
+Style/CaseLikeIf:
+  Enabled: false
 
 Style/ClassAndModuleChildren:
-  Enabled: true
+  Enabled: false
+
+Style/CommentAnnotation:
+  Enabled: false
 
 Style/Documentation:
   Enabled: false
 
-Style/DoubleNegation:
-  Enabled: true
+Style/IfUnlessModifier:
+  Enabled: false
 
-Style/EmptyMethod:
-  Enabled: true
+Style/Lambda:
+  Enabled: false
 
-Style/FrozenStringLiteralComment:
-  Enabled: true
+Style/ModuleFunction:
+  Enabled: false
+
+Style/MultilineBlockChain:
+  Enabled: false
+
+Style/NumericLiterals:
+  Enabled: false
 
 Style/NumericPredicate:
-  Enabled: true
+  Enabled: false
+
+Style/ParallelAssignment:
+  Enabled: false
+
+Style/PerlBackrefs:
+  Enabled: false
+
+Style/QuotedSymbols:
+  EnforcedStyle: double_quotes
+  Enabled: false
+
+Style/RaiseArgs:
+  Enabled: false
+
+Style/RescueStandardError:
+  Enabled: false
+
+Style/SingleArgumentDig:
+  Enabled: false
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
+  Enabled: false
 
 Style/StringLiteralsInInterpolation:
-  EnforcedStyle: double_quotes
+  Enabled: false
 
-Style/TrivialAccessors:
-  AllowPredicates: true
+Style/SymbolArray:
+  EnforcedStyle: brackets
 
 Style/TrailingCommaInArguments:
-  EnforcedStyleForMultiline: comma
+  Enabled: false
 
 Style/TrailingCommaInArrayLiteral:
-  EnforcedStyleForMultiline: comma
+  Enabled: false
+  EnforcedStyleForMultiline: consistent_comma
 
 Style/TrailingCommaInHashLiteral:
-  EnforcedStyleForMultiline: comma
+  Enabled: false
 
-Layout/MultilineArrayBraceLayout:
-  Enabled: true
-  EnforcedStyle: symmetrical
+Style/TrailingUnderscoreVariable:
+  Enabled: false
 
-Layout/MultilineHashBraceLayout:
-  Enabled: true
-  EnforcedStyle: symmetrical
+Style/WordArray:
+  EnforcedStyle: brackets
 
-Layout/MultilineAssignmentLayout:
-  Enabled: true
-  EnforcedStyle: same_line
+Style/ZeroLengthPredicate:
+  Enabled: false
 
-Layout/FirstArrayElementIndentation:
-  Enabled: true
-  EnforcedStyle: consistent
-
-Layout/FirstHashElementIndentation:
-  Enabled: true
-  EnforcedStyle: consistent
-
-Layout/MultilineHashKeyLineBreaks:
+Style/DateTime:
   Enabled: true
 
-Layout/LineLength:
-  Enabled: true
-  Max: 250
+RSpec/ExpectChange:
+  EnforcedStyle: block
 
-Style/FormatStringToken:
-  Enabled: true
-  EnforcedStyle: template
+Gemspec/RequireMFA:
+  # Our Gemspec files are internal, MFA isn't needed
+  Enabled: false
+
+# Temporary Rubocop exclusions
+Style/OpenStructUse:
+  Enabled: false
+
+# Ruby 3 migration exclusions
+Style/HashSyntax:
+  Enabled: false
+
+Naming/BlockForwarding:
+  Enabled: false
+
+Lint/RedundantDirGlobSort:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/VerifiedDoubles:
+  Enabled: false
+
+RSpec/ContextWording:
+  Enabled: false
+
+RSpec/AnyInstance:
+  Enabled: false
 
 RSpec/MessageSpies:
-  Enabled: true
-  EnforcedStyle: receive
+  Enabled: false
+
+RSpec/RepeatedDescription:
+  Enabled: false
+
+RSpec/RepeatedExample:
+  Enabled: false
+
+RSpec/HookArgument:
+  Enabled: false
+
+RSpec/DescribeClass:
+  Enabled: false
+
+RSpec/DescribedClass:
+  Enabled: false
 
 RSpec/FilePath:
-  Enabled: true
-  SpecSuffixOnly: true
+  Enabled: false
+
+RSpec/IdenticalEqualityAssertion:
+  Enabled: false
+
+RSpec/InstanceVariable:
+  Enabled: false
+
+RSpec/MissingExampleGroupArgument:
+  Enabled: false
+
+RSpec/MultipleDescribes:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+RSpec/PredicateMatcher:
+  Enabled: false
+
+RSpec/Rails/HttpStatus:
+  Enabled: false
+
+RSpec/RepeatedExampleGroupDescription:
+  Enabled: false
+
+RSpec/StubbedMock:
+  Enabled: false
+
+Lint/UnusedMethodArgument:
+  Enabled: false
+
+Lint/MissingSuper:
+  Enabled: false
+
+RSpec/NoExpectationExample:
+  Enabled: false
+
+Style/AccessorGrouping:
+  Enabled: false
+
+Style/FormatStringToken:
+  Enabled: false
