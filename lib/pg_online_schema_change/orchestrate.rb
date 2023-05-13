@@ -253,7 +253,7 @@ module PgOnlineSchemaChange
             if primary_table_storage_parameters.empty?
               "ALTER TABLE #{shadow_table} RESET (autovacuum_enabled, toast.autovacuum_enabled);"
             else
-              "ALTER TABLE #{shadow} SET (#{primary_table_storage_parameters});"
+              "ALTER TABLE #{shadow_table} SET (#{primary_table_storage_parameters});"
             end
           )
 
