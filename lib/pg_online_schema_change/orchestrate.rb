@@ -38,8 +38,14 @@ module PgOnlineSchemaChange
         Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table.downcase}_#{pgosc_identifier}")
 
-        Store.set(:referential_foreign_key_statements, Query.referential_foreign_keys_to_refresh(client, client.table_name))
-        Store.set(:self_foreign_key_statements, Query.self_foreign_keys_to_refresh(client, client.table_name))
+        Store.set(
+          :referential_foreign_key_statements,
+          Query.referential_foreign_keys_to_refresh(client, client.table_name),
+        )
+        Store.set(
+          :self_foreign_key_statements,
+          Query.self_foreign_keys_to_refresh(client, client.table_name),
+        )
         Store.set(:trigger_statements, Query.get_triggers_for(client, client.table_name))
       end
 
@@ -74,9 +80,7 @@ module PgOnlineSchemaChange
       def setup_signals!
         reader, writer = IO.pipe
 
-        %w[TERM QUIT INT].each do |sig|
-          trap(sig) { writer.puts sig }
-        end
+        ['TERM', 'QUIT', 'INT'].each { |sig| trap(sig) { writer.puts sig } }
 
         reader
       end
@@ -85,14 +89,14 @@ module PgOnlineSchemaChange
         reader = setup_signals!
         signal = reader.gets.chomp
 
-        while !reader.closed? && IO.select([reader]) # rubocop:disable Lint/UnreachableLoop
-          logger.info "Signal #{signal} received, cleaning up"
+        while !reader.closed? && reader.wait_readable # rubocop:disable Lint/UnreachableLoop
+          logger.info("Signal #{signal} received, cleaning up")
 
           client.connection.cancel
           drop_and_cleanup!
           reader.close
 
-          exit Signal.list[signal]
+          exit(Signal.list[signal])
         end
       end
 
@@ -124,13 +128,13 @@ module PgOnlineSchemaChange
           $$
           BEGIN
             IF ( TG_OP = 'INSERT') THEN
-              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'INSERT', clock_timestamp(), NEW.* ;
+              INSERT INTO "#{audit_table}" select nextval('#{audit_table_pk_sequence}'), 'INSERT', clock_timestamp(), NEW.* ;
               RETURN NEW;
             ELSIF ( TG_OP = 'UPDATE') THEN
-              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'UPDATE', clock_timestamp(),  NEW.* ;
+              INSERT INTO "#{audit_table}" select nextval('#{audit_table_pk_sequence}'), 'UPDATE', clock_timestamp(),  NEW.* ;
               RETURN NEW;
             ELSIF ( TG_OP = 'DELETE') THEN
-              INSERT INTO \"#{audit_table}\" select nextval(\'#{audit_table_pk_sequence}\'), 'DELETE', clock_timestamp(), OLD.* ;
+              INSERT INTO "#{audit_table}" select nextval('#{audit_table_pk_sequence}'), 'DELETE', clock_timestamp(), OLD.* ;
               RETURN NEW;
             END IF;
           END;
@@ -158,10 +162,18 @@ module PgOnlineSchemaChange
         Query.run(client.connection, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", true)
         logger.info("Setting up shadow table", { shadow_table: shadow_table })
 
-        Query.run(client.connection, "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');", true)
+        Query.run(
+          client.connection,
+          "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');",
+          true,
+        )
 
         # update serials
-        Query.run(client.connection, "SELECT fix_serial_sequence('#{client.table_name}', '#{shadow_table}');", true)
+        Query.run(
+          client.connection,
+          "SELECT fix_serial_sequence('#{client.table_name}', '#{shadow_table}');",
+          true,
+        )
       end
 
       def disable_vacuum!
@@ -170,8 +182,10 @@ module PgOnlineSchemaChange
         result = Query.storage_parameters_for(client, client.table_name, true) || ""
         Store.set(:primary_table_storage_parameters, result)
 
-        logger.debug("Disabling vacuum on shadow and audit table",
-                     { shadow_table: shadow_table, audit_table: audit_table })
+        logger.debug(
+          "Disabling vacuum on shadow and audit table",
+          { shadow_table: shadow_table, audit_table: audit_table },
+        )
         sql = <<~SQL
           ALTER TABLE #{shadow_table} SET (
             autovacuum_enabled = false, toast.autovacuum_enabled = false
@@ -187,8 +201,10 @@ module PgOnlineSchemaChange
       def run_alter_statement!
         # re-uses transaction with serializable
         statement = Query.alter_statement_for(client, shadow_table)
-        logger.info("Running alter statement on shadow table",
-                    { shadow_table: shadow_table, parent_table: client.table_name })
+        logger.info(
+          "Running alter statement on shadow table",
+          { shadow_table: shadow_table, parent_table: client.table_name },
+        )
         Query.run(client.connection, statement, true)
 
         Store.set(:dropped_columns_list, Query.dropped_columns(client))
@@ -200,10 +216,16 @@ module PgOnlineSchemaChange
         # Begin the process to copy data into copy table
         # depending on the size of the table, this can be a time
         # taking operation.
-        logger.info("Clearing contents of audit table before copy..", { shadow_table: shadow_table, parent_table: client.table_name })
+        logger.info(
+          "Clearing contents of audit table before copy..",
+          { shadow_table: shadow_table, parent_table: client.table_name },
+        )
         Query.run(client.connection, "DELETE FROM #{audit_table}", true)
 
-        logger.info("Copying contents..", { shadow_table: shadow_table, parent_table: client.table_name })
+        logger.info(
+          "Copying contents..",
+          { shadow_table: shadow_table, parent_table: client.table_name },
+        )
         if client.copy_statement
           query = format(client.copy_statement, shadow_table: shadow_table)
           return Query.run(client.connection, query, true)
@@ -225,8 +247,15 @@ module PgOnlineSchemaChange
 
       def swap!
         logger.info("Performing swap!")
-
-        storage_params_reset = primary_table_storage_parameters.empty? ? "" : "ALTER TABLE #{client.table_name} SET (#{primary_table_storage_parameters});"
+        puts primary_table_storage_parameters
+        storage_params_reset =
+          (
+            if primary_table_storage_parameters.empty?
+              ""
+            else
+              "ALTER TABLE #{client.table_name} SET (#{primary_table_storage_parameters});"
+            end
+          )
 
         # From here on, all statements are carried out in a single
         # transaction with access exclusive lock
@@ -235,12 +264,17 @@ module PgOnlineSchemaChange
 
         raise AccessExclusiveLockNotAcquired unless opened
 
-        Query.run(client.connection, "SET statement_timeout to '#{SWAP_STATEMENT_TIMEOUT}';", opened)
+        Query.run(
+          client.connection,
+          "SET statement_timeout to '#{SWAP_STATEMENT_TIMEOUT}';",
+          opened,
+        )
 
         rows = Replay.rows_to_play(opened)
         Replay.play!(rows, opened)
 
-        query_for_primary_key_refresh = Query.query_for_primary_key_refresh(shadow_table, primary_key, client.table_name, opened)
+        query_for_primary_key_refresh =
+          Query.query_for_primary_key_refresh(shadow_table, primary_key, client.table_name, opened)
 
         sql = <<~SQL
           #{query_for_primary_key_refresh};

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-
 module PgOnlineSchemaChange
   class Replay
     extend Helper
@@ -29,7 +27,9 @@ module PgOnlineSchemaChange
         SQL
 
         rows = []
-        Query.run(client.connection, select_query, reuse_trasaction) { |result| rows = result.map { |row| row } }
+        Query.run(client.connection, select_query, reuse_trasaction) do |result|
+          rows = result.map { |row| row }
+        end
 
         rows
       end
@@ -48,14 +48,10 @@ module PgOnlineSchemaChange
 
           # Remove audit table cols, since we will be
           # re-mapping them for inserts and updates
-          reserved_columns.each do |col|
-            new_row.delete(col)
-          end
+          reserved_columns.each { |col| new_row.delete(col) }
 
           if dropped_columns_list.any?
-            dropped_columns_list.each do |dropped_column|
-              new_row.delete(dropped_column)
-            end
+            dropped_columns_list.each { |dropped_column| new_row.delete(dropped_column) }
           end
 
           if renamed_columns_list.any?
@@ -69,13 +65,9 @@ module PgOnlineSchemaChange
 
           # quote indent column to preserve case insensitivity
           # ensure rows are escaped
-          new_row = new_row.transform_keys do |column|
-            client.connection.quote_ident(column)
-          end
+          new_row = new_row.transform_keys { |column| client.connection.quote_ident(column) }
 
-          new_row = new_row.transform_values do |value|
-            client.connection.escape_string(value)
-          end
+          new_row = new_row.transform_values { |value| client.connection.escape_string(value) }
 
           case row[operation_type_column]
           when "INSERT"
@@ -89,21 +81,19 @@ module PgOnlineSchemaChange
 
             to_be_deleted_rows << "'#{row[audit_table_pk]}'"
           when "UPDATE"
-            set_values = new_row.map do |column, value|
-              "#{column} = '#{value}'"
-            end.join(",")
+            set_values = new_row.map { |column, value| "#{column} = '#{value}'" }.join(",")
 
             sql = <<~SQL
               UPDATE #{shadow_table}
               SET #{set_values}
-              WHERE #{primary_key}=\'#{row[primary_key]}\';
+              WHERE #{primary_key}='#{row[primary_key]}';
             SQL
             to_be_replayed << sql
 
             to_be_deleted_rows << "'#{row[audit_table_pk]}'"
           when "DELETE"
             sql = <<~SQL
-              DELETE FROM #{shadow_table} WHERE #{primary_key}=\'#{row[primary_key]}\';
+              DELETE FROM #{shadow_table} WHERE #{primary_key}='#{row[primary_key]}';
             SQL
             to_be_replayed << sql
 

@@ -14,7 +14,14 @@ def setup_pgbench_tables(foreign_keys:)
 
   log("Setting up pgbench validate table")
 
-  foreign_key_statement = foreign_keys ? "ALTER TABLE pgbench_accounts_validate ADD FOREIGN KEY (bid) REFERENCES pgbench_branches(bid)" : ""
+  foreign_key_statement =
+    (
+      if foreign_keys
+        "ALTER TABLE pgbench_accounts_validate ADD FOREIGN KEY (bid) REFERENCES pgbench_branches(bid)"
+      else
+        ""
+      end
+    )
 
   sql = <<~SQL
     CREATE TABLE pgbench_accounts_validate AS SELECT * FROM pgbench_accounts;
@@ -30,7 +37,7 @@ end
 # is done, we expect to see no discrepancies in the data between two tables.
 # We do this after pg-osc has run successfully, as it would have performed
 # a swap with not issues.
-RSpec.describe "SmokeSpec" do
+RSpec.describe("SmokeSpec") do
   before do
     log("Cleaning up")
 
@@ -56,26 +63,27 @@ RSpec.describe "SmokeSpec" do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
 
     it "is setup succesfully" do
-      expect_query_result(connection: client.connection, query: "select count(*) from pgbench_accounts", assertions: [
-        {
-          count: 1,
-          data: [{ "count" => "1000000" }],
-        },
-      ])
+      expect_query_result(
+        connection: client.connection,
+        query: "select count(*) from pgbench_accounts",
+        assertions: [{ count: 1, data: [{ "count" => "1000000" }] }],
+      )
 
-      expect_query_result(connection: client.connection, query: "select count(*) from pgbench_accounts_validate", assertions: [
-        {
-          count: 1,
-          data: [{ "count" => "1000000" }],
-        },
-      ])
+      expect_query_result(
+        connection: client.connection,
+        query: "select count(*) from pgbench_accounts_validate",
+        assertions: [{ count: 1, data: [{ "count" => "1000000" }] }],
+      )
     end
 
     it "matches after pg-osc run" do
-      pid = fork do
-        log("Running pgbench")
-        exec("pgbench --file spec/fixtures/bench.sql -T 60000 -c 5 --host #{client.host} -U #{client.username} -d #{client.dbname}")
-      end
+      pid =
+        fork do
+          log("Running pgbench")
+          exec(
+            "pgbench --file spec/fixtures/bench.sql -T 60000 -c 5 --host #{client.host} -U #{client.username} -d #{client.dbname}",
+          )
+        end
       Process.detach(pid)
 
       log("Running pg-osc")
@@ -100,11 +108,7 @@ RSpec.describe "SmokeSpec" do
         (TABLE pgbench_accounts_validate EXCEPT TABLE pgbench_accounts);
       SQL
 
-      expect_query_result(connection: client.connection, query: sql, assertions: [
-        {
-          count: 0,
-        },
-      ])
+      expect_query_result(connection: client.connection, query: sql, assertions: [{ count: 0 }])
     ensure
       begin
         Process.kill("KILL", pid)
@@ -129,10 +133,13 @@ RSpec.describe "SmokeSpec" do
     end
 
     it "matches after pg-osc run" do
-      pid = fork do
-        log("Running pgbench")
-        exec("pgbench --file spec/fixtures/bench.sql -T 60000 -c 5 --host #{client.host} -U #{client.username} -d #{client.dbname}")
-      end
+      pid =
+        fork do
+          log("Running pgbench")
+          exec(
+            "pgbench --file spec/fixtures/bench.sql -T 60000 -c 5 --host #{client.host} -U #{client.username} -d #{client.dbname}",
+          )
+        end
       Process.detach(pid)
 
       log("Running pg-osc")
@@ -157,11 +164,7 @@ RSpec.describe "SmokeSpec" do
         (TABLE pgbench_accounts_validate EXCEPT TABLE pgbench_accounts);
       SQL
 
-      expect_query_result(connection: client.connection, query: sql, assertions: [
-        {
-          count: 0,
-        },
-      ])
+      expect_query_result(connection: client.connection, query: sql, assertions: [{ count: 0 }])
     ensure
       begin
         Process.kill("KILL", pid)

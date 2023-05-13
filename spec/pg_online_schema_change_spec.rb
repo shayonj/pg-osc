@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-RSpec.describe PgOnlineSchemaChange do
+RSpec.describe(PgOnlineSchemaChange) do
   it "has a version number" do
-    expect(PgOnlineSchemaChange::VERSION).not_to be nil
+    expect(PgOnlineSchemaChange::VERSION).not_to be_nil
   end
 
   it "sets and gets a logger instance" do

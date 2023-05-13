@@ -5,7 +5,7 @@
 [![Smoke Test PG 13.6](https://github.com/shayonj/pg-osc/actions/workflows/smoke-tests-13-6.yaml/badge.svg?branch=main)](https://github.com/shayonj/pg-osc/actions/workflows/smoke-tests-13-6.yaml)
 [![Gem Version](https://badge.fury.io/rb/pg_online_schema_change.svg)](https://badge.fury.io/rb/pg_online_schema_change)
 
-pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads. 
+pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALTER` statements) in Postgres tables with minimal locks, thus helping achieve zero downtime schema changes against production workloads.
 
 `pg-osc` uses the concept of shadow table to perform schema changes. At a high level, it creates a shadow table that looks structurally the same as the primary table, performs the schema change on the shadow table, copies contents from the primary table to the shadow table and swaps the table names in the end while preserving all changes to the primary table using triggers (via audit table).
 
@@ -21,11 +21,11 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 - [Prominent features](#prominent-features)
 - [Load test](#load-test)
 - [Examples](#examples)
-  * [Renaming a column](#renaming-a-column)
-  * [Multiple ALTER statements](#multiple-alter-statements)
-  * [Kill other backends after 5s](#kill-other-backends-after-5s)
-  * [Backfill data](#backfill-data)
-  * [Running using Docker](#running-using-docker)
+  - [Renaming a column](#renaming-a-column)
+  - [Multiple ALTER statements](#multiple-alter-statements)
+  - [Kill other backends after 5s](#kill-other-backends-after-5s)
+  - [Backfill data](#backfill-data)
+  - [Running using Docker](#running-using-docker)
 - [Caveats](#caveats)
 - [How does it work](#how-does-it-work)
 - [Development](#development)
@@ -33,12 +33,13 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 - [Contributing](#contributing)
 - [License](#license)
 - [Code of Conduct](#code-of-conduct)
+
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'pg_online_schema_change'
+gem "pg_online_schema_change"
 ```
 
 And then execute:
@@ -56,7 +57,9 @@ Or via Docker:
     docker pull shayonj/pg-osc:latest
 
 https://hub.docker.com/r/shayonj/pg-osc
+
 ## Requirements
+
 - PostgreSQL 9.6 and later
 - Ruby 2.6 and later
 - Database user should have permissions for `TRIGGER` and/or a `SUPERUSER`
@@ -97,8 +100,10 @@ Usage:
 
 print the version
 ```
+
 ## Prominent features
-- `pg-osc` supports when a column is being added, dropped or renamed with no data loss. 
+
+- `pg-osc` supports when a column is being added, dropped or renamed with no data loss.
 - `pg-osc` acquires minimal locks throughout the process (read more below on the caveats).
 - Copies over indexes and Foreign keys.
 - Optionally drop or retain old tables in the end.
@@ -113,6 +118,7 @@ print the version
 ## Examples
 
 ### Renaming a column
+
 ```
 export PGPASSWORD=""
 pg-online-schema-change perform \
@@ -123,6 +129,7 @@ pg-online-schema-change perform \
 ```
 
 ### Multiple ALTER statements
+
 ```
 export PGPASSWORD=""
 pg-online-schema-change perform \
@@ -134,6 +141,7 @@ pg-online-schema-change perform \
 ```
 
 ### Kill other backends after 5s
+
 If the operation is being performed on a busy table, you can use `pg-osc`'s `kill-backend` functionality to kill other backends that may be competing with the `pg-osc` operation to acquire a lock for a brief while. The `ACCESS EXCLUSIVE` lock acquired by `pg-osc` is only held for a brief while and released after. You can tune how long `pg-osc` should wait before killing other backends (or if at all `pg-osc` should kill backends in the first place).
 
 ```
@@ -149,6 +157,7 @@ pg-online-schema-change perform \
 ```
 
 ### Replaying larger workloads
+
 If you have a table with high write volume, the default replay iteration may not suffice. That is - you may see that `pg-osc` is replaying 1000 rows (`pull-batch-count`) in one go from the audit table. `pg-osc` also waits until the remaining row count (`delta-count`) in audit table is 20 before making the swap. You can tune these values to be higher for faster catch up on these kind of workloads.
 
 ```
@@ -164,10 +173,13 @@ pg-online-schema-change perform \
   --kill-backends \
   --drop
 ```
+
 ### Backfill data
+
 When inserting data into the shadow table, instead of just copying all columns and rows from the primary table, you can pass in a custom sql file to perform the copy and do any additional work. For instance - backfilling certain columns. By providing the `copy-statement`, `pg-osc` will instead play the query to perform the copy operation.
 
 **IMPORTANT NOTES:**
+
 - It is possible to violate a constraint accidentally or not copy data, **so proceed with caution**.
   - You must use OUTER JOINs when joining in the custom SQL, or you will **lose rows** which do not match the joined table.
 - The `ALTER` statement can change the table's structure, **so proceed with caution**.
@@ -204,22 +216,25 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
     --username "jamesbond" \
     --drop
 ```
+
 ## Caveats
+
 - Partitioned tables are not supported as of yet. Pull requests and ideas welcome.
 - A primary key should exist on the table; without it, `pg-osc` will raise an exception
-	- This is because - currently there is no other way to uniquely identify rows during replay.
+  - This is because - currently there is no other way to uniquely identify rows during replay.
 - `pg-osc` will acquire `ACCESS EXCLUSIVE` lock on the parent table twice during the operation.
-	- First, when setting up the triggers and the shadow table.
-	- Next, when performing the swap and updating FK references.
-	- Note: If `kill-backends` is passed, it will attempt to terminate any competing operations during both times. 
+  - First, when setting up the triggers and the shadow table.
+  - Next, when performing the swap and updating FK references.
+  - Note: If `kill-backends` is passed, it will attempt to terminate any competing operations during both times.
 - By design, `pg-osc` doesn't kill any other DDLs being performed. It's best to not run any DDLs against the parent table during the operation.
 - Due to the nature of duplicating a table, there needs to be enough space on the disk to support the operation.
 - Index, constraints and sequence names will be altered and lose their original naming.
-	- Can be fixed in future releases. Feel free to open a feature req.
-- Triggers are not carried over. 
+  - Can be fixed in future releases. Feel free to open a feature req.
+- Triggers are not carried over.
   - Can be fixed in future releases. Feel free to open a feature req.
 - Foreign keys are dropped & re-added to referencing tables with a `NOT VALID`. A follow on `VALIDATE CONSTRAINT` is run.
- 	- Ensures that integrity is maintained and re-introducing FKs doesn't acquire additional locks, hence the `NOT VALID`.
+  - Ensures that integrity is maintained and re-introducing FKs doesn't acquire additional locks, hence the `NOT VALID`.
+
 ## How does it work
 
 - **Primary table**: A table against which a potential schema change is to be run
@@ -228,10 +243,9 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
 
 ![how-it-works](docs/how-it-works.png)
 
-
 1. Create an audit table to record changes made to the parent table.
 2. Acquire a brief `ACCESS EXCLUSIVE` lock to add a trigger on the parent table (for inserts, updates, deletes) to the audit table.
-3. Create a new shadow table and run ALTER/migration on the shadow table. 
+3. Create a new shadow table and run ALTER/migration on the shadow table.
 4. Copy all rows from the old table.
 5. Build indexes on the new table.
 6. Replay all changes accumulated in the audit table against the shadow table.
@@ -245,22 +259,24 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
 
 ## Development
 
-- Install ruby 3.0
+- Install ruby 3.1.3
+
 ```
 \curl -sSL https://get.rvm.io | bash
 
-rvm install 3.0.0
+rvm install 3.1.3
 
-rvm use 3.0.0
+rvm use 3.1.3
 ```
 
 - Spin up postgres via Docker Compose - `docker compose up`
-- `bundle exec rspec` to run the tests. 
+- `bundle exec rspec` to run the tests.
 - You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
-To install this gem onto your local machine, run `bundle exec rake install`. 
+To install this gem onto your local machine, run `bundle exec rake install`.
 
-### Local testing 
+### Local testing
+
 ```
 docker compose up
 
@@ -280,7 +296,7 @@ bundle exec bin/pg-online-schema-change perform -a 'ALTER TABLE pgbench_accounts
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/shayonj/pg-osc. 
+Bug reports and pull requests are welcome on GitHub at https://github.com/shayonj/pg-osc.
 
 ## License
 

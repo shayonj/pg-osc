@@ -4,8 +4,22 @@ require "pg"
 
 module PgOnlineSchemaChange
   class Client
-    attr_accessor :alter_statement, :schema, :dbname, :host, :username, :port, :password, :connection, :table, :table_name, :drop,
-                  :kill_backends, :wait_time_for_lock, :copy_statement, :pull_batch_count, :delta_count
+    attr_accessor :alter_statement,
+                  :schema,
+                  :dbname,
+                  :host,
+                  :username,
+                  :port,
+                  :password,
+                  :connection,
+                  :table,
+                  :table_name,
+                  :drop,
+                  :kill_backends,
+                  :wait_time_for_lock,
+                  :copy_statement,
+                  :pull_batch_count,
+                  :delta_count
 
     def initialize(options)
       @alter_statement = options.alter_statement
@@ -24,13 +38,8 @@ module PgOnlineSchemaChange
       handle_copy_statement(options.copy_statement)
       handle_validations
 
-      @connection = PG.connect(
-        dbname: @dbname,
-        host: @host,
-        user: @username,
-        password: @password,
-        port: @port,
-      )
+      @connection =
+        PG.connect(dbname: @dbname, host: @host, user: @username, password: @password, port: @port)
 
       @table = Query.table(@alter_statement)
       @table_name = Query.table_name(@alter_statement, @table)
@@ -39,11 +48,13 @@ module PgOnlineSchemaChange
     end
 
     def handle_validations
-      raise Error, "Not a valid ALTER statement: #{@alter_statement}" unless Query.alter_statement?(@alter_statement)
+      unless Query.alter_statement?(@alter_statement)
+        raise Error, "Not a valid ALTER statement: #{@alter_statement}"
+      end
 
       return if Query.same_table?(@alter_statement)
 
-      raise Error "All statements should belong to the same table: #{@alter_statement}"
+      raise Error("All statements should belong to the same table: #{@alter_statement}")
     end
 
     def handle_copy_statement(statement)
@@ -52,7 +63,7 @@ module PgOnlineSchemaChange
       file_path = File.expand_path(statement)
       raise Error, "File not found: #{file_path}" unless File.file?(file_path)
 
-      @copy_statement = File.open(file_path, "rb", &:read)
+      @copy_statement = File.binread(file_path)
     end
   end
 end

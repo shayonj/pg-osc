@@ -119,9 +119,7 @@ module DatabaseHelpers
 
   def expect_query_result(connection:, query:, assertions:)
     rows = []
-    PgOnlineSchemaChange::Query.run(connection, query) do |result|
-      rows = result.map { |row| row }
-    end
+    PgOnlineSchemaChange::Query.run(connection, query) { |result| rows = result.map { |row| row } }
 
     assertions.each do |obj|
       expect(rows.count).to eq(obj[:count])

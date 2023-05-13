@@ -12,3 +12,5 @@
 
 # .gem
 .gem
+
+node_modules

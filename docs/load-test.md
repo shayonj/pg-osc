@@ -14,15 +14,17 @@ Total time taken to run schema change: **<3mins**
 ## Simulating load with pgbench
 
 **Initialize**
+
 ```
-pgbench -p $PORT --initialize -s 20 -F 20 --foreign-keys --host $HOST -U $USERNAME  -d $DB 
+pgbench -p $PORT --initialize -s 20 -F 20 --foreign-keys --host $HOST -U $USERNAME  -d $DB
 ```
 
 This creates bunch of pgbench tables. The table being used with `pg-osc` is `pgbench_accounts` which has FKs and also references by other tables with FKS, containing 2M rows.
 
 **Begin**
+
 ```
-pgbench -p $PORT -j 72 -c 288 -T 500 -r --host $DB_HOST -U $USERNAME -d $DB  
+pgbench -p $PORT -j 72 -c 288 -T 500 -r --host $DB_HOST -U $USERNAME -d $DB
 ```
 
 ## Running pg-osc
@@ -36,7 +38,7 @@ ALTER TABLE pgbench_accounts ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE;
 **Execution**
 
 ```bash
-bundle exec bin/pg-online-schema-change perform \ 
+bundle exec bin/pg-online-schema-change perform \
 -a 'ALTER TABLE pgbench_accounts ADD COLUMN "purchased" BOOLEAN DEFAULT FALSE;' \
 -d "pool" \
 -p 25061
@@ -79,13 +81,13 @@ Added `purchased` column.
 ```
 defaultdb=> \d+ pgbench_accounts;
                                   Table "public.pgbench_accounts"
-  Column   |     Type      | Collation | Nullable | Default | Storage  | Stats target | Description 
+  Column   |     Type      | Collation | Nullable | Default | Storage  | Stats target | Description
 -----------+---------------+-----------+----------+---------+----------+--------------+-------------
- aid       | integer       |           | not null |         | plain    |              | 
- bid       | integer       |           |          |         | plain    |              | 
- abalance  | integer       |           |          |         | plain    |              | 
- filler    | character(84) |           |          |         | extended |              | 
- purchased | boolean       |           |          | false   | plain    |              | 
+ aid       | integer       |           | not null |         | plain    |              |
+ bid       | integer       |           |          |         | plain    |              |
+ abalance  | integer       |           |          |         | plain    |              |
+ filler    | character(84) |           |          |         | extended |              |
+ purchased | boolean       |           |          | false   | plain    |              |
 Indexes:
     "pgosc_st_pgbench_accounts_815029_pkey" PRIMARY KEY, btree (aid)
 Foreign-key constraints:
@@ -131,7 +133,6 @@ NOTICE:  table "pgosc_st_pgbench_accounts_714a8b" does not exist, skipping
 ```
 
 </details>
-
 
 ## Conclusion
 
