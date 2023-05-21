@@ -66,6 +66,7 @@ module PgOnlineSchemaChange
         replay_and_swap!
         run_analyze!
         validate_constraints!
+        replace_views!
         drop_and_cleanup!
 
         logger.info("All tasks successfully completed")
@@ -295,6 +296,23 @@ module PgOnlineSchemaChange
         validate_statements = Query.get_foreign_keys_to_validate(client, client.table_name)
 
         Query.run(client.connection, validate_statements)
+      end
+
+      def replace_views!
+        # Grab the views matching the pgosc op table name. So there are less chances of partial
+        # table name matches from within Query.view_definitions_for
+        view_definitions = Query.view_definitions_for(client, old_primary_table)
+        view_definitions.each do |definition|
+          definition.each do |view_name, view_definition|
+            view_definition = view_definition.gsub(old_primary_table, client.table)
+
+            logger.info("Replacing view #{view_name}")
+            sql = <<~SQL
+              CREATE OR REPLACE VIEW #{view_name} AS #{view_definition}
+            SQL
+            Query.run(client.connection, sql)
+          end
+        end
       end
 
       def drop_and_cleanup!

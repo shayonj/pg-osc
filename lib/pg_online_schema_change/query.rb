@@ -301,6 +301,21 @@ module PgOnlineSchemaChange
         columns.first
       end
 
+      def view_definitions_for(client, table)
+        query = <<~SQL
+          select *
+          from INFORMATION_SCHEMA.VIEWS
+          where VIEW_DEFINITION like '%#{table}%'
+        SQL
+
+        definitions = []
+        run(client.connection, query) do |result|
+          definitions = result.map { |row| {row["table_name"] => row["view_definition"].strip} }
+        end
+
+        definitions
+      end
+
       # This function acquires the lock and keeps the transaction
       # open. If a lock is acquired, its upon the caller
       # to call COMMIT to end the transaction. If a lock
