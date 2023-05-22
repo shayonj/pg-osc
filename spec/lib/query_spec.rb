@@ -678,6 +678,20 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
     end
   end
 
+  describe ".view_definitions_for" do
+    it "returns all the definitions successfully" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      setup_tables(client)
+      ingest_dummy_data_into_dummy_table(client)
+      result = described_class.view_definitions_for(client, "books")
+      expect(result).to eq([
+        {
+          "books_view" =>"SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM books\n  WHERE (books.seller_id = 1);",
+        }
+      ])
+    end
+  end
+
   describe ".copy_data_statement" do
     let(:client) do
       client = PgOnlineSchemaChange::Client.new(client_options)

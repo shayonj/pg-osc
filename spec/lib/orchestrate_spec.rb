@@ -1270,6 +1270,72 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     end
   end
 
+  describe ".replace_views!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
+      described_class.setup!(client_options)
+
+      ingest_dummy_data_into_dummy_table(client)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.disable_vacuum!
+      described_class.run_alter_statement!
+      described_class.copy_data!
+      described_class.dropped_columns_list
+      PgOnlineSchemaChange::Replay.play!([])
+    end
+
+    it "succesfully recreates the view" do
+      expected_views_result = [
+        {
+          "books_view" =>"SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM books\n  WHERE (books.seller_id = 1);",
+        }
+      ]
+      expected_views_result_op_table = [
+        {
+          "books_view" =>"SELECT pgosc_op_table_books.user_id,\n    pgosc_op_table_books.username,\n    pgosc_op_table_books.seller_id,\n    pgosc_op_table_books.password,\n    pgosc_op_table_books.email,\n    pgosc_op_table_books.\"createdOn\",\n    pgosc_op_table_books.last_login\n   FROM pgosc_op_table_books\n  WHERE (pgosc_op_table_books.seller_id = 1);",
+        }
+      ]
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, "select count(*) from  books_view;") do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows.first["count"]).to eq("3")
+
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, described_class.old_primary_table)).to eq([])
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, client.table)).to eq(expected_views_result)
+
+      described_class.swap!
+
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, described_class.old_primary_table)).to eq(expected_views_result_op_table)
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, client.table)).to eq([])
+
+      # Add an entry to check re-creation of view was successful with new data
+      query = <<~SQL
+        INSERT INTO "books"("user_id", "seller_id", "username", "password", "email", "createdOn", "last_login")
+        VALUES(4, 1, 'jamesbond', '007', 'james@bond.com', clock_timestamp(), clock_timestamp()) RETURNING "user_id", "username", "password", "email", "createdOn", "last_login";
+       SQL
+      PgOnlineSchemaChange::Query.run(client.connection, query)
+
+      described_class.replace_views!
+
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, described_class.old_primary_table)).to eq([])
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, client.table)).to eq(expected_views_result)
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, "select count(*) from books_view;") do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows.first["count"]).to eq("4")
+    end
+  end
+
   describe ".drop_and_cleanup!" do
     let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
 
@@ -1284,10 +1350,11 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.setup_trigger!
       described_class.setup_shadow_table!
       described_class.disable_vacuum!
-      described_class.copy_data!
       described_class.run_alter_statement!
+      described_class.copy_data!
       PgOnlineSchemaChange::Replay.play!([])
       described_class.swap!
+      described_class.replace_views!
     end
 
     it "sucessfully drops audit table" do

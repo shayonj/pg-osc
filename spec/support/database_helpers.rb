@@ -108,6 +108,11 @@ module DatabaseHelpers
         (1, 'jamesbond2', '007', 'james1@bond.com', clock_timestamp(), clock_timestamp()),
         (1, 'jamesbond3', '008', 'james2@bond.com', clock_timestamp(), clock_timestamp()),
         (1, 'jamesbond4', '009', 'james3@bond.com', clock_timestamp(), clock_timestamp());
+
+      CREATE OR REPLACE VIEW Books_view AS
+        SELECT *
+        FROM books
+        WHERE seller_id = 1;
     SQL
     PgOnlineSchemaChange::Query.run(client.connection, query)
   end

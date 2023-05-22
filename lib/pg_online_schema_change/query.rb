@@ -301,6 +301,27 @@ module PgOnlineSchemaChange
         columns.first
       end
 
+      def view_definitions_for(client, table)
+        query = <<~SQL
+          SELECT DISTINCT dependent_view.relname as view_name, pg_get_viewdef(dependent_view.relname::regclass) as view_definition
+          FROM pg_depend
+          JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
+          JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid
+          JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid
+          JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
+          WHERE
+          source_ns.nspname = '#{client.schema}'
+          AND source_table.relname = '#{table}'
+        SQL
+
+        definitions = []
+        run(client.connection, query) do |result|
+          definitions = result.map { |row| {row["view_name"] => row["view_definition"].strip} }
+        end
+
+        definitions
+      end
+
       # This function acquires the lock and keeps the transaction
       # open. If a lock is acquired, its upon the caller
       # to call COMMIT to end the transaction. If a lock
