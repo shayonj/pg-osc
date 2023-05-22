@@ -1313,9 +1313,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
 
       described_class.swap!
 
-      # Views for both parent and op table return the same value
       expect(PgOnlineSchemaChange::Query.view_definitions_for(client, described_class.old_primary_table)).to eq(expected_views_result_op_table)
-      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, client.table)).to eq(expected_views_result_op_table)
+      expect(PgOnlineSchemaChange::Query.view_definitions_for(client, client.table)).to eq([])
 
       # Add an entry to check re-creation of view was successful with new data
       query = <<~SQL

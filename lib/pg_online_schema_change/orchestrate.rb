@@ -299,8 +299,6 @@ module PgOnlineSchemaChange
       end
 
       def replace_views!
-        # Grab the views matching the pgosc op table name. So there are less chances of partial
-        # table name matches from within Query.view_definitions_for
         view_definitions = Query.view_definitions_for(client, old_primary_table)
         view_definitions.each do |definition|
           definition.each do |view_name, view_definition|
