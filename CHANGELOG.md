@@ -1,3 +1,8 @@
+## [0.9.0] - 2023-05-22
+
+- Fix typo in README.md https://github.com/shayonj/pg-osc/pull/87
+- Support for views https://github.com/shayonj/pg-osc/pull/88
+
 ## [0.8.1] - 2023-05-13
 
 - Gem path and CI fixes
