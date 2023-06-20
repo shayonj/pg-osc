@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   spec.metadata = { "rubygems_mfa_required" => "true" }
 
   spec.add_runtime_dependency("ougai", "~> 2.0.0")
-  spec.add_runtime_dependency("pg", "~> 1.3.2")
+  spec.add_runtime_dependency("pg", ">= 1.3.2", "< 1.6.0")
   spec.add_runtime_dependency("pg_query", "~> 2.1.3")
   spec.add_runtime_dependency("thor", "~> 1.2.1")
 
