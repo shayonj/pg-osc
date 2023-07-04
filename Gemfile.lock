@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    pg_online_schema_change (0.9.1)
+    pg_online_schema_change (0.9.2)
       ougai (~> 2.0.0)
       pg (>= 1.3.2, < 1.6.0)
       pg_query (>= 2.1.3, < 4.3.0)
@@ -22,7 +22,7 @@ GEM
     json (2.6.3)
     language_server-protocol (3.17.0.3)
     method_source (1.0.0)
-    oj (3.14.3)
+    oj (3.15.0)
     ougai (2.0.0)
       oj (~> 3.10)
     parallel (1.23.0)
