@@ -176,7 +176,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       expect(client.connection).to receive(:async_exec).with(
         /FROM   	pg_constraint/,
       ).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").twice.and_call_original
+      expect(client.connection).to receive(:async_exec).with("COMMIT;").once.and_call_original
 
       allow(client.connection).to receive(:async_exec).with(alter_query).and_raise(
         PG::DependentObjectsStillExist,
@@ -818,7 +818,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
   end
 
   describe ".open_lock_exclusive with forked process and kills backend" do
-    it "cannot acquire lock at first, kills backend (forked process), sucesfully acquires lock and returns true" do
+    it "cannot acquire lock at first, kills backend (forked process), sucessfully acquires lock and returns true" do
       pid =
         fork do
           new_client = PgOnlineSchemaChange::Client.new(client_options)

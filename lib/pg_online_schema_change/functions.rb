@@ -45,7 +45,7 @@ FUNC_CREATE_TABLE_ALL = <<~SQL
         rec record;
     begin
     EXECUTE format(
-          'CREATE TABLE %s (LIKE %s including all)',
+          'CREATE TABLE %s (LIKE %s including all) WITH (autovacuum_enabled = false)',
           newsource_table, source_table);
     END
   $$;

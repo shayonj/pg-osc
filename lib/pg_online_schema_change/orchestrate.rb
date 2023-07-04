@@ -37,6 +37,7 @@ module PgOnlineSchemaChange
         Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
         Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table.downcase}_#{pgosc_identifier}")
+        Store.set(:primary_table_storage_parameters, Query.storage_parameters_for(client, client.table_name, true) || "")
 
         Store.set(
           :referential_foreign_key_statements,
@@ -59,7 +60,6 @@ module PgOnlineSchemaChange
 
         setup_trigger!
         setup_shadow_table! # re-uses transaction with serializable
-        disable_vacuum! # re-uses transaction with serializable
         run_alter_statement! # re-uses transaction with serializable
         copy_data! # re-uses transaction with serializable
         run_analyze!
@@ -105,7 +105,7 @@ module PgOnlineSchemaChange
         logger.info("Setting up audit table", { audit_table: audit_table })
 
         sql = <<~SQL
-          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, #{trigger_time_column} timestamp, LIKE #{client.table_name});
+          CREATE TABLE #{audit_table} (#{audit_table_pk} SERIAL PRIMARY KEY, #{operation_type_column} text, #{trigger_time_column} timestamp, LIKE #{client.table_name}) WITH (autovacuum_enabled = false);
         SQL
 
         Query.run(client.connection, sql)
@@ -175,28 +175,6 @@ module PgOnlineSchemaChange
           "SELECT fix_serial_sequence('#{client.table_name}', '#{shadow_table}');",
           true,
         )
-      end
-
-      def disable_vacuum!
-        # re-uses transaction with serializable
-        # Disabling vacuum to avoid any issues during the process
-        result = Query.storage_parameters_for(client, client.table_name, true) || ""
-        Store.set(:primary_table_storage_parameters, result)
-
-        logger.debug(
-          "Disabling vacuum on shadow and audit table",
-          { shadow_table: shadow_table, audit_table: audit_table },
-        )
-        sql = <<~SQL
-          ALTER TABLE #{shadow_table} SET (
-            autovacuum_enabled = false, toast.autovacuum_enabled = false
-          );
-
-          ALTER TABLE #{audit_table} SET (
-            autovacuum_enabled = false, toast.autovacuum_enabled = false
-          );
-        SQL
-        Query.run(client.connection, sql, true)
       end
 
       def run_alter_statement!

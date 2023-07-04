@@ -19,9 +19,12 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
 
       expect(client.connection).to receive(:async_exec)
         .with("BEGIN;")
-        .exactly(8)
+        .exactly(9)
         .times
         .and_call_original
+      expect(client.connection).to receive(:async_exec).with(
+          /array_to_string/,
+        ).and_call_original
       expect(client.connection).to receive(:async_exec).with(
         /convalidated AS constraint_validated/,
       ).and_call_original
@@ -37,7 +40,7 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       expect(client.connection).to receive(:async_exec).with(query).and_call_original
       expect(client.connection).to receive(:async_exec)
         .with("COMMIT;")
-        .exactly(8)
+        .exactly(9)
         .times
         .and_call_original
       expect(client.connection).to receive(:async_exec).with(
@@ -83,8 +86,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
 
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      described_class.setup!(client_options)
       setup_tables(client)
+      described_class.setup!(client_options)
     end
 
     after do
@@ -161,6 +164,20 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
             "column_name_regular" => "last_login",
           },
         ],
+      )
+    end
+
+    it "creates the shadow table with autovacuum disabled" do
+      described_class.setup_audit_table!
+
+      query = <<~SQL
+        select reloptions from pg_class where relname = '#{described_class.audit_table}';
+       SQL
+
+      expect_query_result(
+        connection: client.connection,
+        query: query,
+        assertions: [{ count: 1, data: [{ "reloptions" => "{autovacuum_enabled=false}" }] }],
       )
     end
   end
@@ -445,47 +462,14 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         assertions: [{ count: 1, data: [{ "count" => "0" }] }],
       )
     end
-  end
 
-  describe ".disable_vacuum!" do
-    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
-
-    before do
-      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      setup_tables(client)
-      described_class.setup!(client_options)
-
-      described_class.setup_audit_table!
+    it "creates the shadow table with autovacuum disabled" do
       described_class.setup_shadow_table!
-    end
-
-    it "successfully" do
-      query = <<~SQL
-        ALTER TABLE #{described_class.shadow_table} SET (
-          autovacuum_enabled = false, toast.autovacuum_enabled = false
-        );
-
-        ALTER TABLE #{described_class.audit_table} SET (
-          autovacuum_enabled = false, toast.autovacuum_enabled = false
-        );
-      SQL
-      expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
-      expect(client.connection).to receive(:async_exec).with(
-        "SELECT array_to_string(reloptions, ',') as params FROM pg_class WHERE relname='books';\n",
-      ).and_call_original
-      expect(client.connection).to receive(:async_exec).with(query).and_call_original
-      expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
-
-      described_class.disable_vacuum!
-
-      expect(described_class.primary_table_storage_parameters).to eq(
-        "autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000",
-      )
-      RSpec::Mocks.space.reset_all
 
       query = <<~SQL
-        select reloptions from pg_class where relname = '#{described_class.audit_table}';
-      SQL
+        select reloptions from pg_class where relname = '#{described_class.shadow_table}';
+       SQL
+
       expect_query_result(
         connection: client.connection,
         query: query,
@@ -982,7 +966,6 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.setup_audit_table!
       described_class.setup_trigger!
       described_class.setup_shadow_table!
-      described_class.disable_vacuum!
       described_class.run_alter_statement!
       described_class.copy_data!
 
@@ -1163,7 +1146,6 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.setup_audit_table!
       described_class.setup_trigger!
       described_class.setup_shadow_table!
-      described_class.disable_vacuum!
       described_class.run_alter_statement!
       described_class.copy_data!
       PgOnlineSchemaChange::Replay.play!([])
@@ -1203,7 +1185,6 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.setup_audit_table!
       described_class.setup_trigger!
       described_class.setup_shadow_table!
-      described_class.disable_vacuum!
       described_class.run_alter_statement!
       described_class.copy_data!
       PgOnlineSchemaChange::Replay.play!([])
@@ -1283,7 +1264,6 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.setup_audit_table!
       described_class.setup_trigger!
       described_class.setup_shadow_table!
-      described_class.disable_vacuum!
       described_class.run_alter_statement!
       described_class.copy_data!
       described_class.dropped_columns_list
@@ -1349,7 +1329,6 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.setup_audit_table!
       described_class.setup_trigger!
       described_class.setup_shadow_table!
-      described_class.disable_vacuum!
       described_class.run_alter_statement!
       described_class.copy_data!
       PgOnlineSchemaChange::Replay.play!([])
