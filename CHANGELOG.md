@@ -1,3 +1,11 @@
+## [0.9.2] - 2023-07-03
+
+- Dependency updates
+- Create shadow and audit with auatovacuum default turned off. Should avoid lock queues when disabling vacuum on audit table. #97
+## [0.9.1] - 2023-06-24
+
+- Dependency updates and refresh docker release process with multi-platform build
+
 ## [0.9.0] - 2023-05-22
 
 - Fix typo in README.md https://github.com/shayonj/pg-osc/pull/87
