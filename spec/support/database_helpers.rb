@@ -80,6 +80,11 @@ module DatabaseHelpers
         "createdOn" TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
+      
+      CREATE TABLE IF NOT EXISTS #{schema}.this_is_a_table_with_a_very_long_name (
+        id serial PRIMARY KEY,
+        "createdOn" TIMESTAMP NOT NULL
+      );
 
       ALTER ROLE jamesbond SET statement_timeout = '60s';
       ALTER ROLE jamesbond SET lock_timeout = '60s';

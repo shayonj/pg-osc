@@ -321,6 +321,14 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
           "constraint_validated" => "t",
           "definition" => "FOREIGN KEY (book_id) REFERENCES books(user_id)",
         },
+        {
+          "table_on" => "this_is_a_table_with_a_very_long_name",
+          "table_from" => "-",
+          "constraint_type" => "p",
+          "constraint_name" => "this_is_a_table_with_a_very_long_name_pkey",
+          "constraint_validated" => "t",
+          "definition" => "PRIMARY KEY (id)",
+        },
       ]
 
       expect(described_class.get_all_constraints_for(client)).to eq(result)
