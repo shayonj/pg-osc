@@ -35,7 +35,6 @@ module PgOnlineSchemaChange
         Store.set(:operation_type_column, "operation_type_#{pgosc_identifier}")
         Store.set(:trigger_time_column, "trigger_time_#{pgosc_identifier}")
         Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
-        Store.set(:audit_table_pk_sequence, "#{audit_table}_#{audit_table_pk}_seq")
         Store.set(:shadow_table, "pgosc_st_#{client.table.downcase}_#{pgosc_identifier}")
         Store.set(:primary_table_storage_parameters, Query.storage_parameters_for(client, client.table_name, true) || "")
 
@@ -109,6 +108,8 @@ module PgOnlineSchemaChange
         SQL
 
         Query.run(client.connection, sql)
+
+        Store.set(:audit_table_pk_sequence, Query.get_sequence_name(client, audit_table, audit_table_pk))
       end
 
       def setup_trigger!
