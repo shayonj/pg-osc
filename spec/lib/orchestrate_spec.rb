@@ -180,6 +180,29 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         assertions: [{ count: 1, data: [{ "reloptions" => "{autovacuum_enabled=false}" }] }],
       )
     end
+
+    describe "when table has a long name" do
+      let(:client) do
+        options =
+          client_options.to_h.merge(alter_statement: "ALTER TABLE this_is_a_table_with_a_very_long_name ADD COLUMN \"user_id\" int;")
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      before do
+        allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+        described_class.setup!(client_options)
+        setup_tables(client)
+      end
+
+      it "successfully" do
+        described_class.setup_audit_table!
+
+        sequence_name = PgOnlineSchemaChange::Query.get_sequence_name(client, described_class.audit_table, described_class.audit_table_pk)
+        expect(described_class.audit_table_pk_sequence).to eq(sequence_name)
+      end
+    end
+
   end
 
   describe ".setup_trigger!" do

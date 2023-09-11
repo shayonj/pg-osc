@@ -134,6 +134,18 @@ module PgOnlineSchemaChange
         indexes
       end
 
+      # fetches the sequence name of a table and column combination
+      def get_sequence_name(client, table, column)
+        query = <<~SQL
+          SELECT pg_get_serial_sequence('#{table}', '#{column}');
+        SQL
+
+        run(client.connection, query) { |result| result.map { |row|
+          row["pg_get_serial_sequence"]
+        }
+        }.first
+      end
+
       def get_triggers_for(client, table)
         query = <<~SQL
           SELECT pg_get_triggerdef(oid) as tdef FROM pg_trigger
