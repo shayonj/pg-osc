@@ -215,7 +215,7 @@ RSpec/DescribeClass:
 RSpec/DescribedClass:
   Enabled: false
 
-RSpec/FilePath:
+RSpec/SpecFilePathFormat:
   Enabled: false
 
 RSpec/IdenticalEqualityAssertion:
