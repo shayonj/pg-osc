@@ -314,7 +314,7 @@ module PgOnlineSchemaChange
 
       def view_definitions_for(client, table)
         query = <<~SQL
-          SELECT DISTINCT dependent_view.relname as view_name, pg_get_viewdef(dependent_view.relname::regclass) as view_definition
+          SELECT DISTINCT dependent_view.relname as view_name, pg_get_viewdef(format('%I.%I', '#{client.schema}', dependent_view.relname)::regclass) as view_definition
           FROM pg_depend
           JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
           JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid
