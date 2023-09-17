@@ -289,6 +289,7 @@ bundle exec bin/pg-online-schema-change perform -a 'ALTER TABLE pgbench_accounts
 ## Releasing
 
 - Bump version in `version.rb`
+- bundle install
 - Commit
 - `./scripts/release.sh 0.2.0`
 - Update `CHANGELOG.md`
