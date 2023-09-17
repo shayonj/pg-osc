@@ -1,3 +1,14 @@
+## [0.9.4] - 2023-09-17
+
+- Resolving gem push and sync glitch in 0.9.3
+
+## [0.9.3] - 2023-09-17
+
+- Dependency updates
+- Adding support for showing the gem version with -v or --version by @brycethornton #101
+- Fix for INSERT's failing for long table names by @ahilmer #116
+- Get view definition of a view from dedicated schema by @shayonj #117
+
 ## [0.9.2] - 2023-07-03
 
 - Dependency updates
