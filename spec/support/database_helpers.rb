@@ -20,6 +20,7 @@ module DatabaseHelpers
       delta_count: 20,
       pull_batch_count: 1000,
       copy_statement: "",
+      skip_foreign_key_validation: false,
     }
     Struct.new(*options.keys).new(*options.values)
   end
@@ -80,7 +81,7 @@ module DatabaseHelpers
         "createdOn" TIMESTAMP NOT NULL,
         last_login TIMESTAMP
       );
-      
+
       CREATE TABLE IF NOT EXISTS #{schema}.this_is_a_table_with_a_very_long_name (
         id serial PRIMARY KEY,
         "createdOn" TIMESTAMP NOT NULL

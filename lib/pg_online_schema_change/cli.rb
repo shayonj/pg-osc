@@ -89,6 +89,13 @@ module PgOnlineSchemaChange
                   default: DELTA_COUNT,
                   desc:
                     "Indicates how many rows should be remaining before a swap should be performed. This can be tuned for faster catch up and swap, especially on highly volume tables. Best used with pull-batch-count."
+    method_option :skip_foreign_key_validation,
+                  aliases: "-o",
+                  type: :boolean,
+                  required: false,
+                  default: false,
+                  desc:
+                    "Skip foreign key validation after swap. You shouldn't need this unless you have a very specific use case, like manually validating foreign key constraints after swap."
 
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)

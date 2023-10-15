@@ -11,8 +11,6 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 
 `pg-osc` is inspired by the design and workings of tools like `pg_repack` and `pt-online-schema-change` (MySQL). Read more below on [how does it work](#how-does-it-work), [prominent features](#prominent-features), the [caveats](#caveats) and [examples](#examples)
 
-⚠️ Proceed with caution when using this on production like workloads. Best to try on similar setup or staging like environment first. Read on below for some examples and caveats.
-
 ## Table of Contents
 
 - [Installation](#installation)
@@ -70,28 +68,29 @@ https://hub.docker.com/r/shayonj/pg-osc
 pg-online-schema-change help perform
 
 Usage:
-  pg-online-schema-change perform -a, --alter-statement=ALTER_STATEMENT -d, --dbname=DBNAME -h, --host=HOST -p, --port=N -s, --schema=SCHEMA -u, --username=USERNAME -w, --password=PASSWORD
+  pg-online-schema-change perform -a, --alter-statement=ALTER_STATEMENT -d, --dbname=DBNAME -h, --host=HOST -p, --port=N -s, --schema=SCHEMA -u, --username=USERNAME
 
 Options:
-  -a, --alter-statement=ALTER_STATEMENT        # The ALTER statement to perform the schema change
-  -s, --schema=SCHEMA                          # The schema in which the table is
-                                               # Default: public
-  -d, --dbname=DBNAME                          # Name of the database
-  -h, --host=HOST                              # Server host where the Database is located
-  -u, --username=USERNAME                      # Username for the Database
-  -p, --port=N                                 # Port for the Database
-                                               # Default: 5432
-  -w, --password=PASSWORD                      # DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead.
-  -v, [--verbose], [--no-verbose]              # Emit logs in debug mode
-  -f, [--drop], [--no-drop]                    # Drop the original table in the end after the swap
-  -k, [--kill-backends], [--no-kill-backends]  # Kill other competing queries/backends when trying to acquire lock for the shadow table creation and swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times.
-  -w, [--wait-time-for-lock=N]                 # Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock.
-                                               # Default: 10
-  -c, [--copy-statement=COPY_STATEMENT]        # Takes a .sql file location where you can provide a custom query to be played (ex: backfills) when pgosc copies data from the primary to the shadow table. More examples in README.
-  -b, [--pull-batch-count=N]                   # Number of rows to be replayed on each iteration after copy. This can be tuned for faster catch up and swap. Best used with delta-count.
-                                               # Default: 1000
-  -e, [--delta-count=N]                        # Indicates how many rows should be remaining before a swap should be performed. This can be tuned for faster catch up and swap, especially on highly volume tables. Best used with pull-batch-count.
-                                               # Default: 20
+  -a, --alter-statement=ALTER_STATEMENT                                    # The ALTER statement to perform the schema change
+  -s, --schema=SCHEMA                                                      # The schema in which the table is
+                                                                           # Default: public
+  -d, --dbname=DBNAME                                                      # Name of the database
+  -h, --host=HOST                                                          # Server host where the Database is located
+  -u, --username=USERNAME                                                  # Username for the Database
+  -p, --port=N                                                             # Port for the Database
+                                                                           # Default: 5432
+  -w, [--password=PASSWORD]                                                # DEPRECATED: Password for the Database. Please pass PGPASSWORD environment variable instead.
+  -v, [--verbose], [--no-verbose]                                          # Emit logs in debug mode
+  -f, [--drop], [--no-drop]                                                # Drop the original table in the end after the swap
+  -k, [--kill-backends], [--no-kill-backends]                              # Kill other competing queries/backends when trying to acquire lock for the shadow table creation and swap. It will wait for --wait-time-for-lock duration before killing backends and try upto 3 times.
+  -w, [--wait-time-for-lock=N]                                             # Time to wait before killing backends to acquire lock and/or retrying upto 3 times. It will kill backends if --kill-backends is true, otherwise try upto 3 times and exit if it cannot acquire a lock.
+                                                                           # Default: 10
+  -c, [--copy-statement=COPY_STATEMENT]                                    # Takes a .sql file location where you can provide a custom query to be played (ex: backfills) when pgosc copies data from the primary to the shadow table. More examples in README.
+  -b, [--pull-batch-count=N]                                               # Number of rows to be replayed on each iteration after copy. This can be tuned for faster catch up and swap. Best used with delta-count.
+                                                                           # Default: 1000
+  -e, [--delta-count=N]                                                    # Indicates how many rows should be remaining before a swap should be performed. This can be tuned for faster catch up and swap, especially on highly volume tables. Best used with pull-batch-count.
+                                                                           # Default: 20
+  -o, [--skip-foreign-key-validation], [--no-skip-foreign-key-validation]  # Skip foreign key validation after swap. You shouldn't need this unless you have a very specific use case, like manually validating foreign key constraints after swap.
 ```
 
 ```

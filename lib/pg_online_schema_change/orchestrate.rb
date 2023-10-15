@@ -276,6 +276,8 @@ module PgOnlineSchemaChange
       end
 
       def validate_constraints!
+        return if client.skip_foreign_key_validation
+
         Query
           .get_foreign_keys_to_validate(client, client.table_name)
           .each do |statement|

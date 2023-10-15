@@ -19,7 +19,8 @@ module PgOnlineSchemaChange
                   :wait_time_for_lock,
                   :copy_statement,
                   :pull_batch_count,
-                  :delta_count
+                  :delta_count,
+                  :skip_foreign_key_validation
 
     def initialize(options)
       @alter_statement = options.alter_statement
@@ -34,6 +35,7 @@ module PgOnlineSchemaChange
       @wait_time_for_lock = options.wait_time_for_lock
       @pull_batch_count = options.pull_batch_count
       @delta_count = options.delta_count
+      @skip_foreign_key_validation = options.skip_foreign_key_validation
 
       handle_copy_statement(options.copy_statement)
       handle_validations
@@ -54,7 +56,7 @@ module PgOnlineSchemaChange
 
       return if Query.same_table?(@alter_statement)
 
-      raise Error("All statements should belong to the same table: #{@alter_statement}")
+      raise Error, "All statements should belong to the same table: #{@alter_statement}"
     end
 
     def handle_copy_statement(statement)
