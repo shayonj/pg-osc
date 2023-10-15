@@ -32,8 +32,6 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
   - [Local testing](#local-testing)
 - [Releasing](#releasing)
 - [Contributing](#contributing)
-- [License](#license)
-- [Code of Conduct](#code-of-conduct)
 
 ## Installation
 
@@ -298,11 +296,3 @@ bundle exec bin/pg-online-schema-change perform -a 'ALTER TABLE pgbench_accounts
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/shayonj/pg-osc.
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the PgOnlineSchemaChange project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/shayonj/pg-osc/blob/main/CODE_OF_CONDUCT.md).
