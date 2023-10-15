@@ -13,6 +13,7 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Installation](#installation)
 - [Requirements](#requirements)
 - [Usage](#usage)
@@ -22,11 +23,13 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
   - [Renaming a column](#renaming-a-column)
   - [Multiple ALTER statements](#multiple-alter-statements)
   - [Kill other backends after 5s](#kill-other-backends-after-5s)
+  - [Replaying larger workloads](#replaying-larger-workloads)
   - [Backfill data](#backfill-data)
   - [Running using Docker](#running-using-docker)
-- [Caveats](#caveats)
+- [Few things to keep in mind](#few-things-to-keep-in-mind)
 - [How does it work](#how-does-it-work)
 - [Development](#development)
+  - [Local testing](#local-testing)
 - [Releasing](#releasing)
 - [Contributing](#contributing)
 - [License](#license)
