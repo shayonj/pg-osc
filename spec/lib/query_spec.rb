@@ -457,9 +457,13 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
     before { setup_tables(client) }
 
     it "returns drop and add statements" do
-      result =
-        "ALTER TABLE book_audits VALIDATE CONSTRAINT book_audits_book_id_fkey;ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;ALTER TABLE books VALIDATE CONSTRAINT books_seller_id_fkey;"
-      expect(described_class.get_foreign_keys_to_validate(client, "books")).to eq(result)
+      expect(described_class.get_foreign_keys_to_validate(client, "books")).to eq(
+        [
+          "ALTER TABLE book_audits VALIDATE CONSTRAINT book_audits_book_id_fkey;",
+          "ALTER TABLE chapters VALIDATE CONSTRAINT chapters_book_id_fkey;",
+          "ALTER TABLE books VALIDATE CONSTRAINT books_seller_id_fkey;",
+        ],
+      )
     end
   end
 
@@ -693,11 +697,14 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       ingest_dummy_data_into_dummy_table(client)
       described_class.run(client.connection, "reset search_path")
       result = described_class.view_definitions_for(client, "books")
-      expect(result).to eq([
-        {
-          "books_view" =>"SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM test_schema.books\n  WHERE (books.seller_id = 1);",
-        }
-      ])
+      expect(result).to eq(
+        [
+          {
+            "books_view" =>
+              "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM test_schema.books\n  WHERE (books.seller_id = 1);",
+          },
+        ],
+      )
     end
   end
 
