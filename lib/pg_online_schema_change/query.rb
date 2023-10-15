@@ -140,10 +140,9 @@ module PgOnlineSchemaChange
           SELECT pg_get_serial_sequence('#{table}', '#{column}');
         SQL
 
-        run(client.connection, query) { |result| result.map { |row|
-          row["pg_get_serial_sequence"]
-        }
-        }.first
+        run(client.connection, query) do |result|
+          result.map { |row| row["pg_get_serial_sequence"] }
+        end.first
       end
 
       def get_triggers_for(client, table)
@@ -238,11 +237,9 @@ module PgOnlineSchemaChange
         self_foreign_keys =
           constraints.select { |row| row["table_on"] == table && row["constraint_type"] == "f" }
 
-        [referential_foreign_keys, self_foreign_keys].flatten
-          .map do |row|
-            "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
-          end
-          .join
+        [referential_foreign_keys, self_foreign_keys].flatten.map do |row|
+          "ALTER TABLE #{row["table_on"]} VALIDATE CONSTRAINT #{row["constraint_name"]};"
+        end
       end
 
       def dropped_columns(client)
@@ -327,7 +324,7 @@ module PgOnlineSchemaChange
 
         definitions = []
         run(client.connection, query) do |result|
-          definitions = result.map { |row| {row["view_name"] => row["view_definition"].strip} }
+          definitions = result.map { |row| { row["view_name"] => row["view_definition"].strip } }
         end
 
         definitions

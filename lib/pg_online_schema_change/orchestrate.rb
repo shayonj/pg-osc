@@ -36,7 +36,10 @@ module PgOnlineSchemaChange
         Store.set(:trigger_time_column, "trigger_time_#{pgosc_identifier}")
         Store.set(:audit_table_pk, "at_#{pgosc_identifier}_id")
         Store.set(:shadow_table, "pgosc_st_#{client.table.downcase}_#{pgosc_identifier}")
-        Store.set(:primary_table_storage_parameters, Query.storage_parameters_for(client, client.table_name, true) || "")
+        Store.set(
+          :primary_table_storage_parameters,
+          Query.storage_parameters_for(client, client.table_name, true) || "",
+        )
 
         Store.set(
           :referential_foreign_key_statements,
@@ -109,7 +112,10 @@ module PgOnlineSchemaChange
 
         Query.run(client.connection, sql)
 
-        Store.set(:audit_table_pk_sequence, Query.get_sequence_name(client, audit_table, audit_table_pk))
+        Store.set(
+          :audit_table_pk_sequence,
+          Query.get_sequence_name(client, audit_table, audit_table_pk),
+        )
       end
 
       def setup_trigger!
@@ -270,11 +276,12 @@ module PgOnlineSchemaChange
       end
 
       def validate_constraints!
-        logger.info("Validating constraints!")
-
-        validate_statements = Query.get_foreign_keys_to_validate(client, client.table_name)
-
-        Query.run(client.connection, validate_statements)
+        Query
+          .get_foreign_keys_to_validate(client, client.table_name)
+          .each do |statement|
+            logger.info("Validating constraints!", statement: statement)
+            Query.run(client.connection, statement)
+          end
       end
 
       def replace_views!
