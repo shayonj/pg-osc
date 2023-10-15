@@ -1,3 +1,8 @@
+## [0.9.5] - 2023-10-15
+
+- Validate one constraint at a time in #124
+- Introduce --skip-foreign-key-validation in #125
+
 ## [0.9.4] - 2023-09-17
 
 - Resolving gem push and sync glitch in 0.9.3
@@ -13,6 +18,7 @@
 
 - Dependency updates
 - Create shadow and audit with auatovacuum default turned off. Should avoid lock queues when disabling vacuum on audit table. #97
+
 ## [0.9.1] - 2023-06-24
 
 - Dependency updates and refresh docker release process with multi-platform build
