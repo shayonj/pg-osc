@@ -9,7 +9,7 @@ pg-online-schema-change (`pg-osc`) is a tool for making schema changes (any `ALT
 
 `pg-osc` uses the concept of shadow table to perform schema changes. At a high level, it creates a shadow table that looks structurally the same as the primary table, performs the schema change on the shadow table, copies contents from the primary table to the shadow table and swaps the table names in the end while preserving all changes to the primary table using triggers (via audit table).
 
-`pg-osc` is inspired by the design and workings of tools like `pg_repack` and `pt-online-schema-change` (MySQL). Read more below on [how does it work](#how-does-it-work), [prominent features](#prominent-features), the [caveats](#caveats) and [examples](#examples)
+`pg-osc` is inspired by the design and workings of tools like `pg_repack` and `pt-online-schema-change` (MySQL). Read more below on [how does it work](#how-does-it-work), [prominent features](#prominent-features), the [caveats](#few-things-to-keep-in-mind) and [examples](#examples)
 
 ## Table of Contents
 
@@ -104,7 +104,7 @@ print the version
 ## Prominent features
 
 - `pg-osc` supports when a column is being added, dropped or renamed with no data loss.
-- `pg-osc` acquires minimal locks throughout the process (read more below on the caveats).
+- `pg-osc` acquires minimal locks throughout the process (read more below on the [caveats](#few-things-to-keep-in-mind)).
 - Copies over indexes and Foreign keys.
 - Optionally drop or retain old tables in the end.
 - Tune how slow or fast should replays be from the audit/log table ([Replaying larger workloads](#replaying-larger-workloads)).
