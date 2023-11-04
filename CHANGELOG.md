@@ -1,3 +1,8 @@
+## [0.9.6] - 2023-11-04
+
+- Fix and add links to caveats section in #130
+- Refresh views across all schemas post swap in #134
+
 ## [0.9.5] - 2023-10-15
 
 - Validate one constraint at a time in #124
