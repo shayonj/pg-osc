@@ -512,9 +512,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_trigger!
@@ -987,9 +986,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_trigger!
@@ -1171,9 +1169,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_trigger!
@@ -1214,9 +1211,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_trigger!
@@ -1256,9 +1252,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_trigger!
@@ -1335,10 +1330,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
-
+      described_class.setup!(client_options)
       described_class.setup_audit_table!
       described_class.setup_trigger!
       described_class.setup_shadow_table!
@@ -1351,13 +1344,21 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     it "succesfully recreates the view" do
       expected_views_result = [
         {
-          "books_view" =>
+          "temp_views.books_temp_view" =>
+            "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM books\n  WHERE (books.seller_id = 1);",
+        },
+        {
+          "test_schema.books_view" =>
             "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM books\n  WHERE (books.seller_id = 1);",
         },
       ]
       expected_views_result_op_table = [
         {
-          "books_view" =>
+          "temp_views.books_temp_view" =>
+            "SELECT pgosc_op_table_books.user_id,\n    pgosc_op_table_books.username,\n    pgosc_op_table_books.seller_id,\n    pgosc_op_table_books.password,\n    pgosc_op_table_books.email,\n    pgosc_op_table_books.\"createdOn\",\n    pgosc_op_table_books.last_login\n   FROM pgosc_op_table_books\n  WHERE (pgosc_op_table_books.seller_id = 1);",
+        },
+        {
+          "test_schema.books_view" =>
             "SELECT pgosc_op_table_books.user_id,\n    pgosc_op_table_books.username,\n    pgosc_op_table_books.seller_id,\n    pgosc_op_table_books.password,\n    pgosc_op_table_books.email,\n    pgosc_op_table_books.\"createdOn\",\n    pgosc_op_table_books.last_login\n   FROM pgosc_op_table_books\n  WHERE (pgosc_op_table_books.seller_id = 1);",
         },
       ]
@@ -1414,9 +1415,8 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     before do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       setup_tables(client)
-      described_class.setup!(client_options)
-
       ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
 
       described_class.setup_audit_table!
       described_class.setup_trigger!

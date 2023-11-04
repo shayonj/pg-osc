@@ -311,20 +311,25 @@ module PgOnlineSchemaChange
 
       def view_definitions_for(client, table)
         query = <<~SQL
-          SELECT DISTINCT dependent_view.relname as view_name, pg_get_viewdef(format('%I.%I', '#{client.schema}', dependent_view.relname)::regclass) as view_definition
-          FROM pg_depend
-          JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
-          JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid
-          JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid
-          JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
-          WHERE
-          source_ns.nspname = '#{client.schema}'
-          AND source_table.relname = '#{table}'
+          SELECT DISTINCT
+            dependent_view.relname AS view_name,
+            pg_get_viewdef(dependent_view.oid) AS view_definition,
+            view_ns.nspname AS schema_name
+          FROM pg_class AS source_table
+          JOIN pg_depend ON pg_depend.refobjid = source_table.oid
+          JOIN pg_rewrite ON pg_rewrite.oid = pg_depend.objid
+          JOIN pg_class AS dependent_view ON dependent_view.oid = pg_rewrite.ev_class
+          JOIN pg_namespace AS view_ns ON dependent_view.relnamespace = view_ns.oid
+          AND dependent_view.relkind = 'v'
+          AND source_table.relname = '#{table}';
         SQL
 
         definitions = []
         run(client.connection, query) do |result|
-          definitions = result.map { |row| { row["view_name"] => row["view_definition"].strip } }
+          definitions =
+            result.map do |row|
+              { "#{row["schema_name"]}.#{row["view_name"]}" => row["view_definition"].strip }
+            end
         end
 
         definitions

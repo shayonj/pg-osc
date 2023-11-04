@@ -117,15 +117,39 @@ module DatabaseHelpers
 
       CREATE OR REPLACE VIEW Books_view AS
         SELECT *
-        FROM books
+        FROM "#{schema}"."books"
         WHERE seller_id = 1;
     SQL
     PgOnlineSchemaChange::Query.run(client.connection, query)
+    create_view_in_another_schema
+    PgOnlineSchemaChange::Query.run(client.connection, "set search_path to #{schema};")
+  end
+
+  def create_view_in_another_schema(client = nil)
+    options = client_options.to_h.merge(schema: "temp_views")
+    new_client = PgOnlineSchemaChange::Client.new(Struct.new(*options.keys).new(*options.values))
+    PgOnlineSchemaChange::Query.run(
+      new_client.connection,
+      "CREATE SCHEMA IF NOT EXISTS temp_views;",
+    )
+
+    query = <<~SQL
+      SET search_path to temp_views;
+      CREATE OR REPLACE VIEW Books_temp_view AS
+        SELECT *
+        FROM #{schema}.books
+        WHERE seller_id = 1;
+    SQL
+
+    PgOnlineSchemaChange::Query.run(new_client.connection, query)
   end
 
   def cleanup_dummy_tables(client = nil)
     client ||= PgOnlineSchemaChange::Client.new(client_options)
-    PgOnlineSchemaChange::Query.run(client.connection, "DROP SCHEMA IF EXISTS #{schema} CASCADE;")
+    PgOnlineSchemaChange::Query.run(
+      client.connection,
+      "DROP SCHEMA IF EXISTS #{schema} CASCADE; DROP SCHEMA IF EXISTS temp_views CASCADE;",
+    )
   end
 
   def expect_query_result(connection:, query:, assertions:)

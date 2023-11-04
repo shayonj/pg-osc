@@ -697,10 +697,15 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       ingest_dummy_data_into_dummy_table(client)
       described_class.run(client.connection, "reset search_path")
       result = described_class.view_definitions_for(client, "books")
+
       expect(result).to eq(
         [
           {
-            "books_view" =>
+            "temp_views.books_temp_view" =>
+              "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM test_schema.books\n  WHERE (books.seller_id = 1);",
+          },
+          {
+            "test_schema.books_view" =>
               "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM test_schema.books\n  WHERE (books.seller_id = 1);",
           },
         ],
