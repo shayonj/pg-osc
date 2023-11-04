@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'English'
 def log(msg)
   puts "======= #{msg} ======="
 end
@@ -7,9 +8,9 @@ end
 def setup_pgbench_tables(foreign_keys:)
   log("Setting up pgbench")
   if foreign_keys
-    `pgbench --initialize -s 10 --foreign-keys --host #{client.host} -U #{client.username} -d #{client.dbname}`
+    `pgbench --initialize -s 100 --foreign-keys --host #{client.host} -U #{client.username} -d #{client.dbname}`
   else
-    `pgbench --initialize -s 10 --host #{client.host} -U #{client.username} -d #{client.dbname}`
+    `pgbench --initialize -s 100 --host #{client.host} -U #{client.username} -d #{client.dbname}`
   end
 
   log("Setting up pgbench validate table")
@@ -66,13 +67,13 @@ RSpec.describe("SmokeSpec") do
       expect_query_result(
         connection: client.connection,
         query: "select count(*) from pgbench_accounts",
-        assertions: [{ count: 1, data: [{ "count" => "1000000" }] }],
+        assertions: [{ count: 1, data: [{ "count" => "10000000" }] }],
       )
 
       expect_query_result(
         connection: client.connection,
         query: "select count(*) from pgbench_accounts_validate",
-        assertions: [{ count: 1, data: [{ "count" => "1000000" }] }],
+        assertions: [{ count: 1, data: [{ "count" => "10000000" }] }],
       )
     end
 
@@ -81,23 +82,29 @@ RSpec.describe("SmokeSpec") do
         fork do
           log("Running pgbench")
           exec(
-            "pgbench --file spec/fixtures/bench.sql -T 60000 -c 5 --host #{client.host} -U #{client.username} -d #{client.dbname}",
+            "pgbench --file spec/fixtures/bench.sql -T 600000 -c 15 --host #{client.host} -U #{client.username} -d #{client.dbname}",
           )
         end
       Process.detach(pid)
+      sleep(10)
 
       log("Running pg-osc")
       statement = <<~SCRIPT
-        PGPASSWORD="#{client.password}" bundle exec bin/pg-online-schema-change perform \
+        PGPASSWORD="#{client.password}" DEBUG=true bundle exec bin/pg-online-schema-change perform \
         -a 'ALTER TABLE pgbench_accounts ALTER COLUMN aid TYPE BIGINT' \
         -d #{client.dbname} \
         -h #{client.host} \
         -u #{client.username} \
         --drop
       SCRIPT
-      result = `#{statement}`
+      IO.popen(statement) do |io|
+        io.each do |line|
+          puts line
+          output << line
+        end
+      end
 
-      expect(result).to match(/All tasks successfully completed/)
+      expect(output.join(",")).to match(/All tasks successfully completed/)
       Process.kill("KILL", pid)
 
       log("Comparing data between two tables")
@@ -137,23 +144,31 @@ RSpec.describe("SmokeSpec") do
         fork do
           log("Running pgbench")
           exec(
-            "pgbench --file spec/fixtures/bench.sql -T 60000 -c 5 --host #{client.host} -U #{client.username} -d #{client.dbname}",
+            "pgbench --file spec/fixtures/bench.sql -T 600000 -c 15 --host #{client.host} -U #{client.username} -d #{client.dbname} >/dev/null 2>&1",
           )
         end
       Process.detach(pid)
 
+      sleep(10)
+
       log("Running pg-osc")
       statement = <<~SCRIPT
-        PGPASSWORD="#{client.password}" bundle exec bin/pg-online-schema-change perform \
+        PGPASSWORD="#{client.password}" DEBUG=true bundle exec bin/pg-online-schema-change perform \
         -a 'ALTER TABLE pgbench_accounts ALTER COLUMN aid TYPE BIGINT' \
         -d #{client.dbname} \
         -h #{client.host} \
         -u #{client.username} \
         --drop
       SCRIPT
-      result = `#{statement}`
+      output = []
+      IO.popen(statement) do |io|
+        io.each do |line|
+          puts line
+          output << line
+        end
+      end
 
-      expect(result).to match(/All tasks successfully completed/)
+      expect(output.join(",")).to match(/All tasks successfully completed/)
       Process.kill("KILL", pid)
 
       log("Comparing data between two tables")
