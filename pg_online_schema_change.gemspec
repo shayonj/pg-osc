@@ -39,7 +39,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency("ougai", "~> 2.0.0")
   spec.add_runtime_dependency("pg", ">= 1.3.2", "< 1.6.0")
   spec.add_runtime_dependency("pg_query", ">= 2.1.3", "< 4.3.0")
-  spec.add_runtime_dependency("thor", "~> 1.2.1")
+  spec.add_runtime_dependency("thor", ">= 1.2.1", "< 1.4.0")
 
   spec.add_development_dependency("prettier_print")
   spec.add_development_dependency("pry")
