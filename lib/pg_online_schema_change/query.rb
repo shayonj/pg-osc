@@ -66,7 +66,7 @@ module PgOnlineSchemaChange
         end
       end
 
-      def run(connection, query, reuse_trasaction = false, &block)
+      def run(connection, query, ...)
         if [PG::PQTRANS_INERROR, PG::PQTRANS_UNKNOWN].include?(connection.transaction_status)
           connection.cancel
         end
@@ -75,7 +75,7 @@ module PgOnlineSchemaChange
 
         connection.async_exec("BEGIN;")
 
-        result = connection.async_exec(query, &block)
+        result = connection.async_exec(query, ...)
       rescue Exception # rubocop:disable Lint/RescueException
         connection.cancel if connection.transaction_status != PG::PQTRANS_IDLE
         connection.block

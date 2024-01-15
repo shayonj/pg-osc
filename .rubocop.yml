@@ -215,6 +215,9 @@ RSpec/DescribeClass:
 RSpec/DescribedClass:
   Enabled: false
 
+Rspec/FilePath:
+  Enabled: false
+
 RSpec/SpecFilePathFormat:
   Enabled: false
 
