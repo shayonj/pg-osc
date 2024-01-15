@@ -164,6 +164,12 @@ module PgOnlineSchemaChange
       end
 
       def setup_shadow_table!
+        logger.info("Setting up shadow table", { shadow_table: shadow_table })
+        Query.run(
+          client.connection,
+          "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');",
+        )
+
         # re-uses transaction with serializable
         # This ensures that all queries from here till copy_data run with serializable.
         # This is to to ensure that once the trigger is added to the primay table
@@ -173,13 +179,6 @@ module PgOnlineSchemaChange
         # adding the trigger, till the copy ends, since they all happen in the
         # same serializable transaction.
         Query.run(client.connection, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", true)
-        logger.info("Setting up shadow table", { shadow_table: shadow_table })
-
-        Query.run(
-          client.connection,
-          "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');",
-          true,
-        )
 
         # update serials
         Query.run(
