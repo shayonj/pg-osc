@@ -301,13 +301,13 @@ module PgOnlineSchemaChange
       def run_analyze!
         logger.info("Performing ANALYZE!")
 
-        Query.run(client.connection, "ANALYZE VERBOSE #{client.table_name};")
+        client.connection.async_exec("ANALYZE VERBOSE #{client.schema}.#{client.table_name};")
       end
 
       def run_vacuum!
         logger.info("Performing VACUUM!")
 
-        Query.run(client.connection, "VACUUM VERBOSE #{client.table_name};")
+        client.connection.async_exec("VACUUM VERBOSE #{client.schema}.#{client.table_name};")
       end
 
       def validate_constraints!

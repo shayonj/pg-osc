@@ -1181,7 +1181,7 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.swap!
     end
 
-    it "sucessfully renames the tables" do
+    it "sucessfully runs analyze" do
       query = "SELECT last_analyze FROM pg_stat_all_tables WHERE relname = 'books';"
       rows = []
       PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
@@ -1198,6 +1198,44 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       end
 
       expect(rows[0]["last_analyze"]).not_to be_nil
+    end
+  end
+
+  describe ".run_vacuum!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
+      ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.run_alter_statement!
+      described_class.copy_data!
+      PgOnlineSchemaChange::Replay.play!([])
+      described_class.swap!
+    end
+
+    it "sucessfully runs vacuum" do
+      query = "SELECT last_vacuum FROM pg_stat_all_tables WHERE relname = 'books';"
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows[0]["last_vacuum"]).to be_nil
+
+      described_class.run_vacuum!
+      sleep(1)
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows[0]["last_vacuum"]).not_to be_nil
     end
   end
 
