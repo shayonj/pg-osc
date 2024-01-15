@@ -97,6 +97,8 @@ RSpec.describe("SmokeSpec") do
       SCRIPT
       result = `#{statement}`
 
+      puts result
+
       expect(result).to match(/All tasks successfully completed/)
       Process.kill("KILL", pid)
 

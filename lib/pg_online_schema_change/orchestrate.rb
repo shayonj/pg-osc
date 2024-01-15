@@ -5,6 +5,7 @@ require "securerandom"
 module PgOnlineSchemaChange
   class Orchestrate
     SWAP_STATEMENT_TIMEOUT = "5s"
+    TRACK_PROGRESS_INTERVAL = 60 # seconds
 
     extend Helper
 
@@ -57,6 +58,10 @@ module PgOnlineSchemaChange
         Thread.new { handle_signals! }
 
         raise Error, "Parent table has no primary key, exiting..." if primary_key.nil?
+
+        logger.info("Performing some house keeping....")
+        run_analyze!
+        run_vacuum!
 
         setup_audit_table!
 
@@ -159,6 +164,12 @@ module PgOnlineSchemaChange
       end
 
       def setup_shadow_table!
+        logger.info("Setting up shadow table", { shadow_table: shadow_table })
+        Query.run(
+          client.connection,
+          "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');",
+        )
+
         # re-uses transaction with serializable
         # This ensures that all queries from here till copy_data run with serializable.
         # This is to to ensure that once the trigger is added to the primay table
@@ -168,13 +179,6 @@ module PgOnlineSchemaChange
         # adding the trigger, till the copy ends, since they all happen in the
         # same serializable transaction.
         Query.run(client.connection, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", true)
-        logger.info("Setting up shadow table", { shadow_table: shadow_table })
-
-        Query.run(
-          client.connection,
-          "SELECT create_table_all('#{client.table_name}', '#{shadow_table}');",
-          true,
-        )
 
         # update serials
         Query.run(
@@ -208,19 +212,44 @@ module PgOnlineSchemaChange
         )
         Query.run(client.connection, "DELETE FROM #{audit_table}", true)
 
-        logger.info(
-          "Copying contents..",
-          { shadow_table: shadow_table, parent_table: client.table_name },
-        )
         if client.copy_statement
           query = format(client.copy_statement, shadow_table: shadow_table)
           return Query.run(client.connection, query, true)
         end
 
+        logger.info(
+          "Copying contents..",
+          { shadow_table: shadow_table, parent_table: client.table_name },
+        )
+
+        @copy_finished = false
+        log_progress
+
         sql = Query.copy_data_statement(client, shadow_table, true)
         Query.run(client.connection, sql, true)
       ensure
         Query.run(client.connection, "COMMIT;") # commit the serializable transaction
+        @copy_finished = true
+      end
+
+      def log_progress
+        new_connection = client.checkout_connection
+        source_table_size = Query.get_table_size(new_connection, client.schema, client.table_name)
+
+        Thread.new do
+          loop do
+            break if @copy_finished
+
+            shadow_table_size = Query.get_table_size(new_connection, client.schema, shadow_table)
+            progress = (shadow_table_size.to_f / source_table_size) * 100
+            logger.info("Estimated copy progress: #{progress.round(2)}% complete")
+
+            break if @copy_finished || progress >= 100
+            sleep(TRACK_PROGRESS_INTERVAL) unless ENV["CI"]
+          rescue StandardError => e
+            logger.info("Reporting progress failed: #{e.message}")
+          end
+        end
       end
 
       def replay_and_swap!
@@ -272,7 +301,13 @@ module PgOnlineSchemaChange
       def run_analyze!
         logger.info("Performing ANALYZE!")
 
-        Query.run(client.connection, "ANALYZE VERBOSE #{client.table_name};")
+        client.connection.async_exec("ANALYZE VERBOSE #{client.schema}.#{client.table_name};")
+      end
+
+      def run_vacuum!
+        logger.info("Performing VACUUM!")
+
+        client.connection.async_exec("VACUUM VERBOSE #{client.schema}.#{client.table_name};")
       end
 
       def validate_constraints!

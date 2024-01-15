@@ -989,4 +989,21 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       Process.kill("KILL", pid)
     end
   end
+
+  describe ".get_table_size" do
+    it "returns the table size in bytes" do
+      client = PgOnlineSchemaChange::Client.new(client_options)
+      setup_tables(client)
+      ingest_dummy_data_into_dummy_table(client)
+      result =
+        PgOnlineSchemaChange::Query.get_table_size(
+          client.checkout_connection,
+          client.schema,
+          "books",
+        )
+
+      expect(result).to be_a(Integer)
+      expect(result).to be >= 0
+    end
+  end
 end

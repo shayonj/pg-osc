@@ -1181,7 +1181,7 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       described_class.swap!
     end
 
-    it "sucessfully renames the tables" do
+    it "sucessfully runs analyze" do
       query = "SELECT last_analyze FROM pg_stat_all_tables WHERE relname = 'books';"
       rows = []
       PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
@@ -1198,6 +1198,44 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       end
 
       expect(rows[0]["last_analyze"]).not_to be_nil
+    end
+  end
+
+  describe ".run_vacuum!" do
+    let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+
+    before do
+      allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
+      setup_tables(client)
+      ingest_dummy_data_into_dummy_table(client)
+      described_class.setup!(client_options)
+
+      described_class.setup_audit_table!
+      described_class.setup_trigger!
+      described_class.setup_shadow_table!
+      described_class.run_alter_statement!
+      described_class.copy_data!
+      PgOnlineSchemaChange::Replay.play!([])
+      described_class.swap!
+    end
+
+    it "sucessfully runs vacuum" do
+      query = "SELECT last_vacuum FROM pg_stat_all_tables WHERE relname = 'books';"
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+      expect(rows[0]["last_vacuum"]).to be_nil
+
+      described_class.run_vacuum!
+      sleep(1)
+
+      rows = []
+      PgOnlineSchemaChange::Query.run(client.connection, query) do |result|
+        rows = result.map { |row| row }
+      end
+
+      expect(rows[0]["last_vacuum"]).not_to be_nil
     end
   end
 
@@ -1481,6 +1519,36 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         end
 
         expect(rows[0]["exists"]).to be_nil
+      end
+    end
+
+    describe ".log_progress" do
+      let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+      let(:logger) { instance_double(Logger) }
+      let(:source_table_size) { 1000 }
+      let(:shadow_table_size) { 392 }
+
+      before do
+        allow(PgOnlineSchemaChange::Query).to receive(:get_table_size).and_return(
+          source_table_size,
+          shadow_table_size,
+        )
+        allow(PgOnlineSchemaChange::Orchestrate).to receive(:logger).and_return(logger)
+        allow(logger).to receive(:info)
+
+        stub_const("PgOnlineSchemaChange::Orchestrate::TRACK_PROGRESS_INTERVAL", 0.1)
+        described_class.instance_variable_set(:@copy_finished, false)
+      end
+
+      it "logs the estimated copy progress" do
+        expect(logger).to receive(:info).with(/Estimated copy progress: 39.2% complete/)
+
+        thread = described_class.log_progress
+
+        sleep(0.2)
+
+        described_class.instance_variable_set(:@copy_finished, true)
+        thread.join
       end
     end
   end
