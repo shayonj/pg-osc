@@ -201,25 +201,6 @@ module PgOnlineSchemaChange
         Store.set(:renamed_columns_list, Query.renamed_columns(client))
       end
 
-      def log_progress
-        new_connection = client.checkout_connection
-        source_table_size = Query.get_table_size(new_connection, client.schema, client.table_name)
-
-        Thread.new do
-          loop do
-            sleep(TRACK_PROGRESS_INTERVAL) unless ENV["CI"]
-
-            shadow_table_size = Query.get_table_size(new_connection, client.schema, shadow_table)
-            progress = (shadow_table_size.to_f / source_table_size) * 100
-            logger.info("Estimated copy progress: #{progress.round(2)}% complete")
-
-            break if @copy_finished || progress >= 100
-          rescue StandardError => e
-            logger.info("Reporting progress failed: #{e.message}")
-          end
-        end
-      end
-
       def copy_data!
         # re-uses transaction with serializable
         # Begin the process to copy data into copy table
@@ -249,6 +230,26 @@ module PgOnlineSchemaChange
       ensure
         Query.run(client.connection, "COMMIT;") # commit the serializable transaction
         @copy_finished = true
+      end
+
+      def log_progress
+        new_connection = client.checkout_connection
+        source_table_size = Query.get_table_size(new_connection, client.schema, client.table_name)
+
+        Thread.new do
+          loop do
+            break if @copy_finished
+
+            shadow_table_size = Query.get_table_size(new_connection, client.schema, shadow_table)
+            progress = (shadow_table_size.to_f / source_table_size) * 100
+            logger.info("Estimated copy progress: #{progress.round(2)}% complete")
+
+            break if @copy_finished || progress >= 100
+            sleep(TRACK_PROGRESS_INTERVAL) unless ENV["CI"]
+          rescue StandardError => e
+            logger.info("Reporting progress failed: #{e.message}")
+          end
+        end
       end
 
       def replay_and_swap!

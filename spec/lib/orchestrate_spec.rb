@@ -1535,19 +1535,20 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         )
         allow(PgOnlineSchemaChange::Orchestrate).to receive(:logger).and_return(logger)
         allow(logger).to receive(:info)
-        allow(Thread).to receive(:new).and_yield
 
-        stub_const("PgOnlineSchemaChange::Orchestrate::TRACK_PROGRESS_INTERVAL", 0)
+        stub_const("PgOnlineSchemaChange::Orchestrate::TRACK_PROGRESS_INTERVAL", 0.1)
+        described_class.instance_variable_set(:@copy_finished, false)
       end
 
       it "logs the estimated copy progress" do
-        allow(client).to receive(:checkout_connection).and_return(client.connection)
-
-        described_class.instance_variable_set(:@copy_finished, true)
-
         expect(logger).to receive(:info).with(/Estimated copy progress: 39.2% complete/)
 
-        described_class.log_progress
+        thread = described_class.log_progress
+
+        sleep(0.2)
+
+        described_class.instance_variable_set(:@copy_finished, true)
+        thread.join
       end
     end
   end
