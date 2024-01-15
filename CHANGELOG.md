@@ -1,3 +1,7 @@
+## [0.9.8] - 2024-01-15
+
+- Dependency updates
+
 ## [0.9.7] - 2024-01-15
 
 - Introduce the ability to show estimated progress of copy - #146
