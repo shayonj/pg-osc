@@ -52,3 +52,4 @@ jobs:
           POSTGRES_DB: postgres
           POSTGRES_PASSWORD: password
           PGPASSWORD: password
+          CI: true

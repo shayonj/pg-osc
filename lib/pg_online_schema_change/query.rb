@@ -428,6 +428,15 @@ module PgOnlineSchemaChange
           SELECT setval((select pg_get_serial_sequence('#{shadow_table}', '#{primary_key}')), (SELECT max(#{primary_key}) FROM #{table}));
         SQL
       end
+
+      def get_table_size(connection, schema, table_name)
+        size_query = "SELECT pg_table_size('#{schema}.#{table_name}');"
+        result = run(connection, size_query).first
+        result["pg_table_size"].to_i
+      rescue StandardError => e
+        logger.error("Error getting table size: #{e.message}")
+        0
+      end
     end
   end
 end

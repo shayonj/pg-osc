@@ -1483,5 +1483,34 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         expect(rows[0]["exists"]).to be_nil
       end
     end
+
+    describe ".log_progress" do
+      let(:client) { PgOnlineSchemaChange::Client.new(client_options) }
+      let(:logger) { instance_double(Logger) }
+      let(:source_table_size) { 1000 }
+      let(:shadow_table_size) { 392 }
+
+      before do
+        allow(PgOnlineSchemaChange::Query).to receive(:get_table_size).and_return(
+          source_table_size,
+          shadow_table_size,
+        )
+        allow(PgOnlineSchemaChange::Orchestrate).to receive(:logger).and_return(logger)
+        allow(logger).to receive(:info)
+        allow(Thread).to receive(:new).and_yield
+
+        stub_const("PgOnlineSchemaChange::Orchestrate::TRACK_PROGRESS_INTERVAL", 0)
+      end
+
+      it "logs the estimated copy progress" do
+        allow(client).to receive(:checkout_connection).and_return(client.connection)
+
+        described_class.instance_variable_set(:@copy_finished, true)
+
+        expect(logger).to receive(:info).with(/Estimated copy progress: 39.2% complete/)
+
+        described_class.log_progress
+      end
+    end
   end
 end

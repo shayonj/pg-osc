@@ -67,5 +67,9 @@ module PgOnlineSchemaChange
 
       @copy_statement = File.binread(file_path)
     end
+
+    def checkout_connection
+      PG.connect(dbname: dbname, host: host, user: username, password: password, port: port)
+    end
   end
 end
