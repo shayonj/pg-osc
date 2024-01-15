@@ -60,7 +60,6 @@ https://hub.docker.com/r/shayonj/pg-osc
 ## Requirements
 
 - PostgreSQL 9.6 and later
-- Ruby 2.6 and later
 - Database user should have permissions for `TRIGGER` and/or a `SUPERUSER`
 
 ## Usage
@@ -257,14 +256,14 @@ docker run --network host -it --rm shayonj/pg-osc:latest \
 
 ## Development
 
-- Install ruby 3.1.3
+- Install ruby 3.3.0
 
 ```
 \curl -sSL https://get.rvm.io | bash
 
-rvm install 3.1.3
+rvm install 3.3.0
 
-rvm use 3.1.3
+rvm use 3.3.0
 ```
 
 - Spin up postgres via Docker Compose - `docker compose up`
