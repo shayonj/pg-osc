@@ -1,3 +1,7 @@
+## [0.9.7] - 2024-01-15
+
+- Introduce the ability to show estimated progress of copy - #146
+
 ## [0.9.6] - 2023-11-04
 
 - Fix and add links to caveats section in #130
