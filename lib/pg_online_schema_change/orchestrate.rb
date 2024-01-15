@@ -88,7 +88,7 @@ module PgOnlineSchemaChange
       def setup_signals!
         reader, writer = IO.pipe
 
-        %w[TERM QUIT INT].each { |sig| trap(sig) { writer.puts sig } }
+        ['TERM', 'QUIT', 'INT'].each { |sig| trap(sig) { writer.puts sig } }
 
         reader
       end
