@@ -31,7 +31,7 @@ module PgOnlineSchemaChange
         # Set this early on to ensure their creation and cleanup (unexpected)
         # happens at all times. IOW, the calls from Store.get always return
         # the same value.
-        Store.set(:old_primary_table, "pgosc_op_table_#{client.table.downcase}")
+        Store.set(:old_primary_table, "pgosc_op_table_#{client.table.downcase}_#{pgosc_identifier}")
         Store.set(:audit_table, "pgosc_at_#{client.table.downcase}_#{pgosc_identifier}")
         Store.set(:operation_type_column, "operation_type_#{pgosc_identifier}")
         Store.set(:trigger_time_column, "trigger_time_#{pgosc_identifier}")
