@@ -30,6 +30,15 @@ RSpec.describe(PgOnlineSchemaChange::Client) do
     )
   end
 
+  it "raises error if delta count is smaller than pull batch count" do
+    options = client_options.to_h.merge(delta_count: 100, pull_batch_count: 50)
+    client_options = Struct.new(*options.keys).new(*options.values)
+    expect { described_class.new(client_options) }.to raise_error(
+      PgOnlineSchemaChange::Error,
+      "Value for delta_count should be smaller than the value for pull_batch_count",
+    )
+  end
+
   describe "handle_copy_statement" do
     it "reads file and sets statement" do
       query = <<~SQL

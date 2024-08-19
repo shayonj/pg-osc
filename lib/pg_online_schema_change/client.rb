@@ -54,6 +54,10 @@ module PgOnlineSchemaChange
         raise Error, "Not a valid ALTER statement: #{@alter_statement}"
       end
 
+      if delta_count > pull_batch_count
+        raise Error, "Value for delta_count should be smaller than the value for pull_batch_count"
+      end
+
       return if Query.same_table?(@alter_statement)
 
       raise Error, "All statements should belong to the same table: #{@alter_statement}"
