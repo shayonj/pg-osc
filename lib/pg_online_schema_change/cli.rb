@@ -112,7 +112,7 @@ module PgOnlineSchemaChange
       PgOnlineSchemaChange::Orchestrate.run!(client_options)
     end
 
-    map %w[--version -v] => :version
+    map ['--version', '-v'] => :version
     desc "--version, -v", "print the version"
 
     def version
