@@ -32,7 +32,7 @@ GEM
     parser (3.3.0.4)
       ast (~> 2.4.1)
       racc
-    pg (1.5.4)
+    pg (1.5.8)
     pg_query (4.2.3)
       google-protobuf (>= 3.22.3)
     prettier_print (1.2.1)
