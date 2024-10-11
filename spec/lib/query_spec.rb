@@ -538,9 +538,9 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       result = described_class.get_indexes_for(client, "books")
       expect(result).to eq(
         [
-          "CREATE UNIQUE INDEX books_pkey ON #{client.schema}.books USING btree (user_id)",
-          "CREATE UNIQUE INDEX books_username_key ON #{client.schema}.books USING btree (username)",
-          "CREATE UNIQUE INDEX books_email_key ON #{client.schema}.books USING btree (email)",
+          "CREATE UNIQUE INDEX books_pkey ON \"#{client.schema}\".books USING btree (user_id)",
+          "CREATE UNIQUE INDEX books_username_key ON \"#{client.schema}\".books USING btree (username)",
+          "CREATE UNIQUE INDEX books_email_key ON \"#{client.schema}\".books USING btree (email)",
         ],
       )
     end
@@ -701,12 +701,12 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       expect(result).to eq(
         [
           {
-            "temp_views.books_temp_view" =>
-              "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM test_schema.books\n  WHERE (books.seller_id = 1);",
+            "\"temp_views\".books_temp_view" =>
+              "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM \"test-schema\".books\n  WHERE (books.seller_id = 1);",
           },
           {
-            "test_schema.books_view" =>
-              "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM test_schema.books\n  WHERE (books.seller_id = 1);",
+            "\"test-schema\".books_view" =>
+              "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM \"test-schema\".books\n  WHERE (books.seller_id = 1);",
           },
         ],
       )
@@ -845,7 +845,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
           new_client = PgOnlineSchemaChange::Client.new(client_options)
           setup_tables(new_client)
           new_client.connection.async_exec(
-            "SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
+            "SET search_path to \"#{new_client.schema}\"; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
           )
 
           sleep(50)
@@ -860,7 +860,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       client_options = Struct.new(*options.keys).new(*options.values)
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      client.connection.async_exec("SET search_path to #{client.schema};")
+      client.connection.async_exec("SET search_path to \"#{client.schema}\";")
 
       sleep 0.5
 
@@ -879,7 +879,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
           new_client = PgOnlineSchemaChange::Client.new(client_options)
           setup_tables(new_client)
           new_client.connection.async_exec(
-            "SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
+            "SET search_path to \"#{new_client.schema}\"; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
           )
 
           sleep(50)
@@ -891,7 +891,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
 
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      client.connection.async_exec("SET search_path to #{client.schema};")
+      client.connection.async_exec("SET search_path to \"#{client.schema}\";")
 
       sleep(0.5)
 
@@ -911,7 +911,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
           new_client = PgOnlineSchemaChange::Client.new(client_options)
           setup_tables(new_client)
           new_client.connection.async_exec(
-            "SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
+            "SET search_path to \"#{new_client.schema}\"; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
           )
 
           sleep(10)
@@ -923,7 +923,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
 
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
-      client.connection.async_exec("SET search_path to #{client.schema};")
+      client.connection.async_exec("SET search_path to \"#{client.schema}\";")
 
       sleep 0.5
 
@@ -951,7 +951,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
-      client.connection.async_exec("SET search_path to #{client.schema};")
+      client.connection.async_exec("SET search_path to \"#{client.schema}\";")
       result = described_class.kill_backends(client, client.table).map { |n| n }
       expect(result.first).to be_nil
     end
@@ -964,7 +964,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
           new_client = PgOnlineSchemaChange::Client.new(client_options)
           setup_tables(new_client)
           new_client.connection.async_exec(
-            "SET search_path to #{new_client.schema}; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
+            "SET search_path to \"#{new_client.schema}\"; BEGIN; LOCK TABLE #{new_client.table_name} IN ACCESS EXCLUSIVE MODE;",
           )
 
           sleep(5)
@@ -980,7 +980,7 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       client = PgOnlineSchemaChange::Client.new(client_options)
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
 
-      client.connection.async_exec("SET search_path to #{client.schema};")
+      client.connection.async_exec("SET search_path to \"#{client.schema}\";")
 
       result = described_class.kill_backends(client, client.table).map { |n| n }
 

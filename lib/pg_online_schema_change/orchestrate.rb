@@ -16,7 +16,7 @@ module PgOnlineSchemaChange
         sql = <<~SQL
           SET statement_timeout = 0;
           SET client_min_messages = warning;
-          SET search_path TO #{client.schema};
+          SET search_path TO "#{client.schema}";
         SQL
 
         Query.run(client.connection, sql)
@@ -301,13 +301,13 @@ module PgOnlineSchemaChange
       def run_analyze!
         logger.info("Performing ANALYZE!")
 
-        client.connection.async_exec("ANALYZE VERBOSE #{client.schema}.#{client.table_name};")
+        client.connection.async_exec("ANALYZE VERBOSE \"#{client.schema}\".#{client.table_name};")
       end
 
       def run_vacuum!
         logger.info("Performing VACUUM!")
 
-        client.connection.async_exec("VACUUM VERBOSE #{client.schema}.#{client.table_name};")
+        client.connection.async_exec("VACUUM VERBOSE \"#{client.schema}\".#{client.table_name};")
       end
 
       def validate_constraints!

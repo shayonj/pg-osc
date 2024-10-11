@@ -27,7 +27,7 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         /convalidated AS constraint_validated/,
       ).and_call_original
       expect(client.connection).to receive(:async_exec).with(
-        "SET statement_timeout = 0;\nSET client_min_messages = warning;\nSET search_path TO #{client.schema};\n",
+        "SET statement_timeout = 0;\nSET client_min_messages = warning;\nSET search_path TO \"#{client.schema}\";\n",
       ).and_call_original
       expect(client.connection).to receive(:async_exec).with(
         FUNC_FIX_SERIAL_SEQUENCE,
@@ -283,7 +283,7 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         select p.oid::regprocedure from pg_proc p
         join pg_namespace n
         on p.pronamespace = n.oid
-        where n.nspname = 'test_schema';
+        where n.nspname = 'test-schema';
       SQL
 
       expect_query_result(
@@ -1382,21 +1382,21 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
     it "succesfully recreates the view" do
       expected_views_result = [
         {
-          "temp_views.books_temp_view" =>
+          "\"temp_views\".books_temp_view" =>
             "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM books\n  WHERE (books.seller_id = 1);",
         },
         {
-          "test_schema.books_view" =>
+          "\"test-schema\".books_view" =>
             "SELECT books.user_id,\n    books.username,\n    books.seller_id,\n    books.password,\n    books.email,\n    books.\"createdOn\",\n    books.last_login\n   FROM books\n  WHERE (books.seller_id = 1);",
         },
       ]
       expected_views_result_op_table = [
         {
-          "temp_views.books_temp_view" =>
+          "\"temp_views\".books_temp_view" =>
             "SELECT pgosc_op_table_books.user_id,\n    pgosc_op_table_books.username,\n    pgosc_op_table_books.seller_id,\n    pgosc_op_table_books.password,\n    pgosc_op_table_books.email,\n    pgosc_op_table_books.\"createdOn\",\n    pgosc_op_table_books.last_login\n   FROM pgosc_op_table_books\n  WHERE (pgosc_op_table_books.seller_id = 1);",
         },
         {
-          "test_schema.books_view" =>
+          "\"test-schema\".books_view" =>
             "SELECT pgosc_op_table_books.user_id,\n    pgosc_op_table_books.username,\n    pgosc_op_table_books.seller_id,\n    pgosc_op_table_books.password,\n    pgosc_op_table_books.email,\n    pgosc_op_table_books.\"createdOn\",\n    pgosc_op_table_books.last_login\n   FROM pgosc_op_table_books\n  WHERE (pgosc_op_table_books.seller_id = 1);",
         },
       ]

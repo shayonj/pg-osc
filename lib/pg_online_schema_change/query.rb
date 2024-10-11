@@ -328,7 +328,7 @@ module PgOnlineSchemaChange
         run(client.connection, query) do |result|
           definitions =
             result.map do |row|
-              { "#{row["schema_name"]}.#{row["view_name"]}" => row["view_definition"].strip }
+              { "\"#{row["schema_name"]}\".#{row["view_name"]}" => row["view_definition"].strip }
             end
         end
 
