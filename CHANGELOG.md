@@ -1,3 +1,7 @@
+## [0.9.10] - 2024-10-13
+
+- Pin protobuf (https://github.com/shayonj/pg-osc/commit/0a439a873f9df1bf474cfe13060a115278b94658)
+
 ## [0.9.9] - 2024-10-13
 
 - Validate delta_count value against pull_batch_count by @tanelsuurhans in https://github.com/shayonj/pg-osc/pull/164
