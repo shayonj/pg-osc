@@ -1,3 +1,13 @@
+## [0.9.9] - 2024-10-13
+
+- Validate delta_count value against pull_batch_count by @tanelsuurhans in https://github.com/shayonj/pg-osc/pull/164
+- Always quote schema names to support uncommon characters like hyphens by @radhikalism in https://github.com/shayonj/pg-osc/pull/166
+- Bump thor from 1.3.0 to 1.3.2 by @dependabot in https://github.com/shayonj/pg-osc/pull/168
+- Bump rspec from 3.12.0 to 3.13.0 by @dependabot in https://github.com/shayonj/pg-osc/pull/150
+- Bump google-protobuf from 3.25.2 to 3.25.5 by @dependabot in https://github.com/shayonj/pg-osc/pull/171
+- Bump rexml from 3.2.6 to 3.3.6 by @dependabot in https://github.com/shayonj/pg-osc/pull/170
+- Bump pg from 1.5.4 to 1.5.8 by @dependabot in https://github.com/shayonj/pg-osc/pull/172
+
 ## [0.9.8] - 2024-01-15
 
 - Dependency updates
