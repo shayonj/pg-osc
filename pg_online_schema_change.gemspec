@@ -36,7 +36,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.metadata = { "rubygems_mfa_required" => "true" }
 
-  spec.add_runtime_dependency("google-protobuf", "3.25.5")
+  spec.add_runtime_dependency("google-protobuf", "4.29.1")
   spec.add_runtime_dependency("ougai", "~> 2.0.0")
   spec.add_runtime_dependency("pg", ">= 1.3.2", "< 1.6.0")
   spec.add_runtime_dependency("pg_query", ">= 2.1.3", "< 4.3.0")
