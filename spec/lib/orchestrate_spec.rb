@@ -449,16 +449,17 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         ],
       )
 
-      columns =
-        PgOnlineSchemaChange::Query.get_indexes_for(client, described_class.shadow_table.to_s)
-      expect(columns).to eq(
+      columns = PgOnlineSchemaChange::Query.get_indexes_for(client, described_class.shadow_table.to_s)
+      index_defs = columns.map { |col| col["indexdef"] }
+      
+      expect(index_defs).to eq(
         [
           "CREATE UNIQUE INDEX #{described_class.shadow_table}_pkey ON #{described_class.shadow_table} USING btree (user_id)",
           "CREATE UNIQUE INDEX #{described_class.shadow_table}_username_key ON #{described_class.shadow_table} USING btree (username)",
           "CREATE UNIQUE INDEX #{described_class.shadow_table}_email_key ON #{described_class.shadow_table} USING btree (email)",
-        ],
+        ]
       )
-
+      
       foreign_keys =
         PgOnlineSchemaChange::Query.get_foreign_keys_for(client, described_class.shadow_table.to_s)
       expect(foreign_keys).to eq([])
@@ -1030,7 +1031,9 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
 
       # confirm indexes on newly renamed table
       columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
-      expect(columns).to eq(
+      index_defs = columns.map { |col| col["indexdef"] }
+
+      expect(index_defs).to eq(
         [
           "CREATE UNIQUE INDEX #{described_class.shadow_table}_pkey ON books USING btree (user_id)",
           "CREATE UNIQUE INDEX #{described_class.shadow_table}_username_key ON books USING btree (username)",

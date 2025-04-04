@@ -121,19 +121,6 @@ module PgOnlineSchemaChange
         parsed_query.deparse
       end
 
-      def get_indexes_for(client, table)
-        query = <<~SQL
-          SELECT indexdef, schemaname
-          FROM pg_indexes
-          WHERE schemaname = '#{client.schema}' AND tablename = '#{table}'
-        SQL
-
-        indexes = []
-        run(client.connection, query) { |result| indexes = result.map { |row| row["indexdef"] } }
-
-        indexes
-      end
-
       # fetches the sequence name of a table and column combination
       def get_sequence_name(client, table, column)
         query = <<~SQL
@@ -403,7 +390,7 @@ module PgOnlineSchemaChange
         select_columns.map! { |select_column| client.connection.quote_ident(select_column) }
 
         <<~SQL
-          INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")})
+          INSERT INTO #{shadow_table}(#{insert_into_columns.join(", ")}) OVERRIDING SYSTEM VALUE
           SELECT #{select_columns.join(", ")}
           FROM ONLY #{client.table_name}
         SQL
@@ -437,6 +424,61 @@ module PgOnlineSchemaChange
         logger.error("Error getting table size: #{e.message}")
         0
       end
+
+      def get_indexes_for(client, table)
+        query = <<~SQL
+          SELECT indexname, indexdef
+          FROM pg_indexes
+          WHERE schemaname = '#{client.schema}'
+          AND tablename = '#{table}'
+        SQL
+      
+        indexes = []
+        run(client.connection, query) { |result| indexes = result.map { |row| row } }
+        indexes
+      end
+
+      def get_sequences_for(client, table)
+        query = <<~SQL
+          SELECT
+            ns.nspname AS schema_name,
+            seq.relname AS sequence_name,
+            tbl.relname AS table_name,
+            col.attname AS column_name
+          FROM
+            pg_class seq
+            JOIN pg_namespace ns ON seq.relnamespace = ns.oid
+            JOIN pg_depend d ON seq.oid = d.objid
+            JOIN pg_class tbl ON d.refobjid = tbl.oid
+            JOIN pg_attribute col ON col.attrelid = tbl.oid AND col.attnum = d.refobjsubid
+          WHERE
+            seq.relkind = 'S'
+            AND tbl.relname = '#{table}'
+            AND ns.nspname = '#{client.schema}'
+        SQL
+      
+        sequences = []
+        run(client.connection, query) { |result| sequences = result.map { |row| row } }
+        sequences
+      end          
+      
+      def get_constraints_for(client, table)
+        query = <<~SQL
+          SELECT
+            conname AS constraint_name,
+            contype AS constraint_type,
+            conrelid::regclass::text AS table_on,
+            confrelid::regclass::text AS table_from,
+            pg_get_constraintdef(oid) AS definition
+          FROM pg_constraint
+          WHERE connamespace = (SELECT oid FROM pg_namespace WHERE nspname = '#{client.schema}')
+            AND conrelid = '#{table}'::regclass
+        SQL
+      
+        constraints = []
+        run(client.connection, query) { |result| constraints = result.map { |row| row } }
+        constraints
+      end      
     end
   end
 end

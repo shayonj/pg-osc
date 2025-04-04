@@ -51,6 +51,9 @@ module PgOnlineSchemaChange
           Query.self_foreign_keys_to_refresh(client, client.table_name),
         )
         Store.set(:trigger_statements, Query.get_triggers_for(client, client.table_name))
+        Store.set(:original_indexes, Query.get_indexes_for(client, client.table_name))
+        Store.set(:original_sequences, Query.get_sequences_for(client, client.table_name))
+        Store.set(:original_constraints, Query.get_constraints_for(client, client.table_name))
       end
 
       def run!(options)
@@ -75,6 +78,7 @@ module PgOnlineSchemaChange
         validate_constraints!
         replace_views!
         drop_and_cleanup!
+        restore_original_names!
 
         logger.info("All tasks successfully completed")
       rescue StandardError => e
@@ -352,6 +356,126 @@ module PgOnlineSchemaChange
         SQL
 
         Query.run(client.connection, sql)
+      end
+
+      def restore_original_names!
+        logger.info("Restoring original index, constraint, and sequence names")
+        
+        restore_original_indexes!
+        restore_original_constraints!
+        restore_original_sequences!
+        
+        logger.info("Restoration completed successfully ✅")
+      end
+      
+      def restore_original_sequences!
+        logger.info("Restoring sequence names...")
+      
+        original_sequences = Store.get(:original_sequences) || []
+        logger.info("original_sequences", data: original_sequences)
+      
+        current_sequences = Query.get_sequences_for(client, client.table_name)
+        logger.info("current_sequences", data: current_sequences)
+      
+        original_sequences.each do |original_seq|
+          original_seq_name = original_seq["sequence_name"]
+          next unless original_seq_name # skip if nil
+      
+          # Find the matching current sequence
+          matching = current_sequences.find do |curr|
+            curr["column_name"] == original_seq["column_name"] && curr["table_name"] == client.table_name
+          end
+      
+          next unless matching
+      
+          current_seq_name = matching["sequence_name"]
+      
+          logger.info("Renaming sequence #{current_seq_name} to #{original_seq_name}")
+      
+          sql = <<~SQL
+            ALTER SEQUENCE IF EXISTS #{current_seq_name} RENAME TO #{original_seq_name};
+          SQL
+          Query.run(client.connection, sql)
+        end
+      end          
+
+      def restore_original_indexes!
+        logger.info("Restoring index names...")
+      
+        original_indexes = Store.get(:original_indexes) || []
+        current_indexes = Query.get_indexes_for(client, client.table_name)
+      
+        original_indexes.each do |original_index|
+          orig_index_name = original_index["indexname"]
+      
+          # Find the matching current index by definition
+          matching = current_indexes.find do |curr|
+            # Match the column definition (ignore index name)
+            # Compare definition parts (e.g., columns used)
+            curr_def = curr["indexdef"].gsub(/INDEX \S+ ON \S+ USING/, "").strip
+            orig_def = original_index["indexdef"].gsub(/INDEX \S+ ON \S+ USING/, "").strip
+            curr_def == orig_def
+          end
+      
+          unless matching
+            logger.warn("Could not find matching index for #{orig_index_name}, skipping")
+            next
+          end
+      
+          current_index_name = matching["indexname"]
+      
+          # Skip if names already match
+          if current_index_name == orig_index_name
+            logger.info("Index #{orig_index_name} already correct, skipping")
+            next
+          end
+      
+          logger.info("Renaming index #{current_index_name} to #{orig_index_name}")
+      
+          sql = <<~SQL
+            ALTER INDEX IF EXISTS "#{current_index_name}" RENAME TO "#{orig_index_name}";
+          SQL
+          Query.run(client.connection, sql)
+        end
+      end      
+      
+      def restore_original_constraints!
+        logger.info("Restoring constraint names...")
+      
+        original_constraints = Store.get(:original_constraints) || []
+        current_constraints = Query.get_constraints_for(client, client.table_name)
+      
+        original_constraints.each do |original_constraint|
+          orig_constraint_name = original_constraint["constraint_name"]
+      
+          # Skip if primary key, already restored during index restoration
+          next if original_constraint["constraint_type"] == "p"
+      
+          # Find the matching constraint after swap
+          matching = current_constraints.find do |curr|
+            curr["definition"] == original_constraint["definition"]
+          end
+      
+          unless matching
+            logger.warn("Could not find matching constraint for #{orig_constraint_name}, skipping")
+            next
+          end
+      
+          current_constraint_name = matching["constraint_name"]
+      
+          # Skip if names already match
+          if current_constraint_name == orig_constraint_name
+            logger.info("Constraint #{orig_constraint_name} already correct, skipping")
+            next
+          end
+      
+          logger.info("Renaming constraint #{current_constraint_name} to #{orig_constraint_name}")
+      
+          sql = <<~SQL
+            ALTER TABLE "#{client.table_name}" RENAME CONSTRAINT "#{current_constraint_name}" TO "#{orig_constraint_name}";
+          SQL
+          Query.run(client.connection, sql)
+        end
       end
 
       private
