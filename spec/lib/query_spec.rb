@@ -523,20 +523,23 @@ RSpec.describe(PgOnlineSchemaChange::Query) do
       allow(PgOnlineSchemaChange::Client).to receive(:new).and_return(client)
       client
     end
-
-    it "returns index statements for the given table on client" do
+  
+    it "returns index definitions for the given table on client" do
       query = <<~SQL
-        SELECT indexdef, schemaname
+        SELECT indexname, indexdef
         FROM pg_indexes
         WHERE schemaname = '#{client.schema}' AND tablename = 'books'
       SQL
-
+  
       expect(client.connection).to receive(:async_exec).with("BEGIN;").and_call_original
       expect(client.connection).to receive(:async_exec).with(query).and_call_original
       expect(client.connection).to receive(:async_exec).with("COMMIT;").and_call_original
-
+  
       result = described_class.get_indexes_for(client, "books")
-      expect(result).to eq(
+  
+      index_defs = result.map { |r| r["indexdef"] }
+  
+      expect(index_defs).to eq(
         [
           "CREATE UNIQUE INDEX books_pkey ON \"#{client.schema}\".books USING btree (user_id)",
           "CREATE UNIQUE INDEX books_username_key ON \"#{client.schema}\".books USING btree (username)",
