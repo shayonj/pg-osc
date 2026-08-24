@@ -286,9 +286,9 @@ module PgOnlineSchemaChange
 
         sql = <<~SQL
           #{query_for_primary_key_refresh};
-          #{restore_names_statement}
           ALTER TABLE #{client.table_name} RENAME to #{old_primary_table};
           ALTER TABLE #{shadow_table} RENAME to #{client.table_name};
+          #{restore_names_statement}
           #{referential_foreign_key_statements}
           #{self_foreign_key_statements}
           #{trigger_statements}

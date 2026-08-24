@@ -178,7 +178,7 @@ module PgOnlineSchemaChange
             next unless name.include?(shadow_table)
 
             original_name = name.sub(shadow_table, client.table)
-            "ALTER TABLE #{shadow_table} RENAME CONSTRAINT #{name} TO #{original_name};"
+            "ALTER TABLE #{client.table_name} RENAME CONSTRAINT #{name} TO #{original_name};"
           end
 
         (index_renames + constraint_renames).join
