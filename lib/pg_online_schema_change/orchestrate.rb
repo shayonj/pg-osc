@@ -282,7 +282,11 @@ module PgOnlineSchemaChange
           Query.query_for_primary_key_refresh(shadow_table, primary_key, client.table_name, opened)
 
         restore_names_statement =
-          client.preserve_object_names ? Query.restore_names_statement_for(client, shadow_table) : ""
+          if client.preserve_object_names
+            Query.restore_names_statement_for(client, shadow_table, old_primary_table)
+          else
+            ""
+          end
 
         sql = <<~SQL
           #{query_for_primary_key_refresh};
