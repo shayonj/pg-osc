@@ -1072,6 +1072,30 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
           ],
         )
       end
+
+      it "moves the old primary table's conflicting names out of the way" do
+        described_class.swap!
+
+        names =
+          PgOnlineSchemaChange::Query.get_index_names_for(
+            client,
+            described_class.old_primary_table,
+          )
+        expect(names).to contain_exactly(
+          "pgosc_op_books_pkey",
+          "pgosc_op_books_username_key",
+          "pgosc_op_books_email_key",
+        )
+      end
+
+      # Unlike indexes, check constraints copied via "LIKE ... INCLUDING ALL" keep
+      # the source table's name, so they need no rename and must be left alone.
+      it "leaves check constraints untouched" do
+        described_class.swap!
+
+        names = PgOnlineSchemaChange::Query.get_constraint_names_for(client, "books")
+        expect(names).to include("books_password_check")
+      end
     end
 
     it "sucessfully updates the PK sequence" do
