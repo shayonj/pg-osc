@@ -20,7 +20,8 @@ module PgOnlineSchemaChange
                   :copy_statement,
                   :pull_batch_count,
                   :delta_count,
-                  :skip_foreign_key_validation
+                  :skip_foreign_key_validation,
+                  :preserve_object_names
 
     def initialize(options)
       @alter_statement = options.alter_statement
@@ -36,6 +37,7 @@ module PgOnlineSchemaChange
       @pull_batch_count = options.pull_batch_count
       @delta_count = options.delta_count
       @skip_foreign_key_validation = options.skip_foreign_key_validation
+      @preserve_object_names = options.preserve_object_names
 
       handle_copy_statement(options.copy_statement)
       handle_validations

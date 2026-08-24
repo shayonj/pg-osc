@@ -134,6 +134,56 @@ module PgOnlineSchemaChange
         indexes
       end
 
+      def get_index_names_for(client, table)
+        query = <<~SQL
+          SELECT indexname
+          FROM pg_indexes
+          WHERE schemaname = '#{client.schema}' AND tablename = '#{table}'
+        SQL
+
+        names = []
+        run(client.connection, query) { |result| names = result.map { |row| row["indexname"] } }
+
+        names
+      end
+
+      def get_constraint_names_for(client, table)
+        query = <<~SQL
+          SELECT conname
+          FROM pg_constraint
+          WHERE conrelid = '#{client.schema}.#{table}'::regclass
+        SQL
+
+        names = []
+        run(client.connection, query) { |result| names = result.map { |row| row["conname"] } }
+
+        names
+      end
+
+      # Indexes and constraints created via "LIKE source_table INCLUDING ALL" on the
+      # shadow table are named based on the shadow table, not the original table.
+      # This builds statements to rename them back, substituting the shadow table's
+      # name for the primary table's name in each generated name.
+      def restore_names_statement_for(client, shadow_table)
+        index_renames =
+          get_index_names_for(client, shadow_table).filter_map do |name|
+            next unless name.include?(shadow_table)
+
+            original_name = name.sub(shadow_table, client.table)
+            "ALTER INDEX #{name} RENAME TO #{original_name};"
+          end
+
+        constraint_renames =
+          get_constraint_names_for(client, shadow_table).filter_map do |name|
+            next unless name.include?(shadow_table)
+
+            original_name = name.sub(shadow_table, client.table)
+            "ALTER TABLE #{shadow_table} RENAME CONSTRAINT #{name} TO #{original_name};"
+          end
+
+        (index_renames + constraint_renames).join
+      end
+
       # fetches the sequence name of a table and column combination
       def get_sequence_name(client, table, column)
         query = <<~SQL

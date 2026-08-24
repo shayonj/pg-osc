@@ -21,6 +21,7 @@ module DatabaseHelpers
       pull_batch_count: 1000,
       copy_statement: "",
       skip_foreign_key_validation: false,
+      preserve_object_names: false,
     }
     Struct.new(*options.keys).new(*options.values)
   end

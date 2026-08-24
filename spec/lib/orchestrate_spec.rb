@@ -1039,6 +1039,41 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       )
     end
 
+    context "with preserve_object_names" do
+      let(:client) do
+        options = client_options.to_h.merge(preserve_object_names: true)
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      it "restores indexes and constraints to their original names after swap" do
+        described_class.swap!
+
+        columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
+        expect(columns).to eq(
+          [
+            "CREATE UNIQUE INDEX books_pkey ON books USING btree (user_id)",
+            "CREATE UNIQUE INDEX books_username_key ON books USING btree (username)",
+            "CREATE UNIQUE INDEX books_email_key ON books USING btree (email)",
+          ],
+        )
+
+        primary_keys = PgOnlineSchemaChange::Query.get_primary_keys_for(client, "books")
+        expect(primary_keys).to eq(
+          [
+            {
+              "constraint_name" => "books_pkey",
+              "constraint_type" => "p",
+              "constraint_validated" => "t",
+              "definition" => "PRIMARY KEY (user_id)",
+              "table_from" => "-",
+              "table_on" => "books",
+            },
+          ],
+        )
+      end
+    end
+
     it "sucessfully updates the PK sequence" do
       select_query = <<~SQL
         SELECT * FROM books;
