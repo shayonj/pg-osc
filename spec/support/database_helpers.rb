@@ -44,7 +44,8 @@ module DatabaseHelpers
         password VARCHAR ( 50 ) NOT NULL,
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
         "createdOn" TIMESTAMP NOT NULL,
-        last_login TIMESTAMP
+        last_login TIMESTAMP,
+        CONSTRAINT books_password_check CHECK (char_length(password) > 0)
       ) WITH (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000);
 
       CREATE TABLE IF NOT EXISTS "#{schema}".book_audits (
