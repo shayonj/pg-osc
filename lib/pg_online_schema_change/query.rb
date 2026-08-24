@@ -164,24 +164,65 @@ module PgOnlineSchemaChange
       # shadow table are named based on the shadow table, not the original table.
       # This builds statements to rename them back, substituting the shadow table's
       # name for the primary table's name in each generated name.
-      def restore_names_statement_for(client, shadow_table)
+      #
+      # The primary table (about to be renamed to old_primary_table earlier in the
+      # same swap transaction) still holds the original index/constraint names,
+      # since renaming a table doesn't rename its indexes/constraints. Those original
+      # names have to be moved out of the way first, or restoring the shadow's names
+      # below would collide with them. The primary table's current names are fetched
+      # now (before the swap SQL runs, while it's still named client.table); the
+      # generated statement targets old_primary_table since that's its name by the
+      # time this statement executes.
+      def restore_names_statement_for(client, shadow_table, old_primary_table)
+        primary_index_names = get_index_names_for(client, client.table)
+        primary_constraint_names = get_constraint_names_for(client, client.table)
+
+        shadow_index_names = get_index_names_for(client, shadow_table)
+
+        vacate_index_renames =
+          shadow_index_names.filter_map do |name|
+            next unless name.include?(shadow_table)
+
+            original_name = name.sub(shadow_table, client.table)
+            next unless primary_index_names.include?(original_name)
+
+            "ALTER INDEX #{original_name} RENAME TO pgosc_op_#{original_name};"
+          end
+
         index_renames =
-          get_index_names_for(client, shadow_table).filter_map do |name|
+          shadow_index_names.filter_map do |name|
             next unless name.include?(shadow_table)
 
             original_name = name.sub(shadow_table, client.table)
             "ALTER INDEX #{name} RENAME TO #{original_name};"
           end
 
-        constraint_renames =
-          get_constraint_names_for(client, shadow_table).filter_map do |name|
+        # Constraints backed by an index (primary key, unique) share their name with
+        # that index, so renaming the index above already renames the constraint.
+        # Renaming the constraint again here would collide with the index's new name.
+        shadow_constraint_names = get_constraint_names_for(client, shadow_table)
+
+        vacate_constraint_renames =
+          shadow_constraint_names.filter_map do |name|
             next unless name.include?(shadow_table)
+            next if shadow_index_names.include?(name)
+
+            original_name = name.sub(shadow_table, client.table)
+            next unless primary_constraint_names.include?(original_name)
+
+            "ALTER TABLE #{old_primary_table} RENAME CONSTRAINT #{original_name} TO pgosc_op_#{original_name};"
+          end
+
+        constraint_renames =
+          shadow_constraint_names.filter_map do |name|
+            next unless name.include?(shadow_table)
+            next if shadow_index_names.include?(name)
 
             original_name = name.sub(shadow_table, client.table)
             "ALTER TABLE #{client.table_name} RENAME CONSTRAINT #{name} TO #{original_name};"
           end
 
-        (index_renames + constraint_renames).join
+        (vacate_index_renames + vacate_constraint_renames + index_renames + constraint_renames).join
       end
 
       # fetches the sequence name of a table and column combination
