@@ -1124,7 +1124,13 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       # Two indexes over the same columns are interchangeable, so which name each ends
       # up with is arbitrary — but it has to be the same arbitrary result every run,
       # or a swap could silently shuffle names between them.
+      #
+      # Skipped where "LIKE ... INCLUDING ALL" collapses indexes covering the same
+      # columns into one (9.6 does), which leaves the swap nothing interchangeable to
+      # name.
       it "restores interchangeable names deterministically" do
+        skip "server collapses same-column indexes on LIKE ... INCLUDING ALL" unless copies_duplicate_indexes?(client)
+
         PgOnlineSchemaChange::Query.run(
           client.connection,
           "CREATE INDEX aaa_books_on_email ON books (email);

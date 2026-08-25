@@ -165,4 +165,23 @@ module DatabaseHelpers
 
     rows
   end
+
+  # Whether "LIKE ... INCLUDING ALL" keeps indexes that cover the same columns as
+  # each other. Postgres 9.6 collapses them into one, which leaves the swap nothing
+  # interchangeable to name.
+  def copies_duplicate_indexes?(client)
+    PgOnlineSchemaChange::Query.run(
+      client.connection,
+      "CREATE TABLE pgosc_like_probe (id serial PRIMARY KEY, val int);
+       CREATE INDEX pgosc_like_probe_a ON pgosc_like_probe (val);
+       CREATE INDEX pgosc_like_probe_b ON pgosc_like_probe (val);
+       CREATE TABLE pgosc_like_probe_copy (LIKE pgosc_like_probe INCLUDING ALL);",
+    )
+    copied = PgOnlineSchemaChange::Query.get_index_names_for(client, "pgosc_like_probe_copy")
+    PgOnlineSchemaChange::Query.run(
+      client.connection,
+      "DROP TABLE pgosc_like_probe_copy; DROP TABLE pgosc_like_probe;",
+    )
+    copied.size >= 3
+  end
 end
