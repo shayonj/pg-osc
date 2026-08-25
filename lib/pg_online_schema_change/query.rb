@@ -143,6 +143,7 @@ module PgOnlineSchemaChange
           SELECT indexname, indexdef
           FROM pg_indexes
           WHERE schemaname = '#{client.schema}' AND tablename = '#{table}'
+          ORDER BY indexname
         SQL
 
         indexes = []
@@ -162,6 +163,7 @@ module PgOnlineSchemaChange
           SELECT conname, pg_get_constraintdef(oid) AS condef
           FROM pg_constraint
           WHERE conrelid = '#{client.schema}.#{table}'::regclass
+          ORDER BY conname
         SQL
 
         constraints = []
@@ -186,13 +188,19 @@ module PgOnlineSchemaChange
       # Pairs each object on the shadow table with the primary table object it was
       # copied from, matching on definition rather than name — LIKE ... INCLUDING ALL
       # discards the original names, so they can't be recovered from the shadow's.
-      # Objects whose definitions collide (two indexes over the same columns) pair off
-      # in catalog order, which is arbitrary but consistent for both tables.
+      #
+      # Objects whose definitions collide (two indexes over the same columns) have no
+      # meaningful pairing, so they're matched in name order on both sides. Which of
+      # the interchangeable names each one ends up with is arbitrary, but it's the same
+      # arbitrary result on every run.
       def pair_by_definition(primary_objects, shadow_objects, primary_table, shadow_table)
         primary_by_signature =
-          primary_objects.group_by { |object| definition_signature(object[:definition], object[:name], primary_table) }
+          primary_objects
+            .sort_by { |object| object[:name] }
+            .group_by { |object| definition_signature(object[:definition], object[:name], primary_table) }
 
         shadow_objects
+          .sort_by { |object| object[:name] }
           .group_by { |object| definition_signature(object[:definition], object[:name], shadow_table) }
           .flat_map do |signature, shadow_group|
             primary_group = primary_by_signature[signature] || []
