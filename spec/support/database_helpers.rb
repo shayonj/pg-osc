@@ -21,6 +21,7 @@ module DatabaseHelpers
       pull_batch_count: 1000,
       copy_statement: "",
       skip_foreign_key_validation: false,
+      preserve_object_names: false,
     }
     Struct.new(*options.keys).new(*options.values)
   end
@@ -43,7 +44,8 @@ module DatabaseHelpers
         password VARCHAR ( 50 ) NOT NULL,
         email VARCHAR ( 255 ) UNIQUE NOT NULL,
         "createdOn" TIMESTAMP NOT NULL,
-        last_login TIMESTAMP
+        last_login TIMESTAMP,
+        CONSTRAINT books_password_check CHECK (char_length(password) > 0)
       ) WITH (autovacuum_enabled=true,autovacuum_vacuum_scale_factor=0,autovacuum_vacuum_threshold=20000);
 
       CREATE TABLE IF NOT EXISTS "#{schema}".book_audits (
@@ -162,5 +164,24 @@ module DatabaseHelpers
     end
 
     rows
+  end
+
+  # Whether "LIKE ... INCLUDING ALL" keeps indexes that cover the same columns as
+  # each other. Postgres 9.6 collapses them into one, which leaves the swap nothing
+  # interchangeable to name.
+  def copies_duplicate_indexes?(client)
+    PgOnlineSchemaChange::Query.run(
+      client.connection,
+      "CREATE TABLE pgosc_like_probe (id serial PRIMARY KEY, val int);
+       CREATE INDEX pgosc_like_probe_a ON pgosc_like_probe (val);
+       CREATE INDEX pgosc_like_probe_b ON pgosc_like_probe (val);
+       CREATE TABLE pgosc_like_probe_copy (LIKE pgosc_like_probe INCLUDING ALL);",
+    )
+    copied = PgOnlineSchemaChange::Query.get_index_names_for(client, "pgosc_like_probe_copy")
+    PgOnlineSchemaChange::Query.run(
+      client.connection,
+      "DROP TABLE pgosc_like_probe_copy; DROP TABLE pgosc_like_probe;",
+    )
+    copied.size >= 3
   end
 end

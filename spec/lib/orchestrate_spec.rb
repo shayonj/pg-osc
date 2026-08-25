@@ -1039,6 +1039,114 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
       )
     end
 
+    context "with preserve_object_names" do
+      let(:client) do
+        options = client_options.to_h.merge(preserve_object_names: true)
+        client_options = Struct.new(*options.keys).new(*options.values)
+        PgOnlineSchemaChange::Client.new(client_options)
+      end
+
+      it "restores indexes and constraints to their original names after swap" do
+        described_class.swap!
+
+        columns = PgOnlineSchemaChange::Query.get_indexes_for(client, "books")
+        expect(columns).to eq(
+          [
+            "CREATE UNIQUE INDEX books_pkey ON books USING btree (user_id)",
+            "CREATE UNIQUE INDEX books_username_key ON books USING btree (username)",
+            "CREATE UNIQUE INDEX books_email_key ON books USING btree (email)",
+          ],
+        )
+
+        primary_keys = PgOnlineSchemaChange::Query.get_primary_keys_for(client, "books")
+        expect(primary_keys).to eq(
+          [
+            {
+              "constraint_name" => "books_pkey",
+              "constraint_type" => "p",
+              "constraint_validated" => "t",
+              "definition" => "PRIMARY KEY (user_id)",
+              "table_from" => "-",
+              "table_on" => "books",
+            },
+          ],
+        )
+      end
+
+      it "moves the old primary table's conflicting names out of the way" do
+        described_class.swap!
+
+        names =
+          PgOnlineSchemaChange::Query.get_index_names_for(
+            client,
+            described_class.old_primary_table,
+          )
+        expect(names).to contain_exactly(
+          "pgosc_op_books_pkey",
+          "pgosc_op_books_username_key",
+          "pgosc_op_books_email_key",
+        )
+      end
+
+      # Unlike indexes, check constraints copied via "LIKE ... INCLUDING ALL" keep
+      # the source table's name, so they need no rename and must be left alone.
+      it "leaves check constraints untouched" do
+        described_class.swap!
+
+        names = PgOnlineSchemaChange::Query.get_constraint_names_for(client, "books")
+        expect(names).to include("books_password_check")
+      end
+
+      # Names Postgres wouldn't generate itself, which is most of them in a Rails app
+      # (index_books_on_x). These can't be derived from the shadow table's names, so
+      # they're the case that proves objects are paired by definition.
+      it "restores names that aren't Postgres' own defaults" do
+        # The outer before block already built the shadow table, so these have to go
+        # onto the primary and be copied across again to end up on both.
+        PgOnlineSchemaChange::Query.run(
+          client.connection,
+          "CREATE INDEX index_books_on_email_and_username ON books (email, username);
+           CREATE INDEX index_books_on_username_where_recent ON books (username) WHERE seller_id > 0;
+           DROP TABLE #{described_class.shadow_table};",
+        )
+        described_class.setup_shadow_table!
+        described_class.run_alter_statement!
+
+        described_class.swap!
+
+        names = PgOnlineSchemaChange::Query.get_index_names_for(client, "books")
+        expect(names).to include(
+          "index_books_on_email_and_username",
+          "index_books_on_username_where_recent",
+        )
+      end
+
+      # Two indexes over the same columns are interchangeable, so which name each ends
+      # up with is arbitrary — but it has to be the same arbitrary result every run,
+      # or a swap could silently shuffle names between them.
+      #
+      # Skipped where "LIKE ... INCLUDING ALL" collapses indexes covering the same
+      # columns into one (9.6 does), which leaves the swap nothing interchangeable to
+      # name.
+      it "restores interchangeable names deterministically" do
+        skip "server collapses same-column indexes on LIKE ... INCLUDING ALL" unless copies_duplicate_indexes?(client)
+
+        PgOnlineSchemaChange::Query.run(
+          client.connection,
+          "CREATE INDEX aaa_books_on_email ON books (email);
+           CREATE INDEX zzz_books_on_email ON books (email);
+           DROP TABLE #{described_class.shadow_table};",
+        )
+        described_class.setup_shadow_table!
+        described_class.run_alter_statement!
+
+        described_class.swap!
+
+        names = PgOnlineSchemaChange::Query.get_index_names_for(client, "books")
+        expect(names).to include("aaa_books_on_email", "zzz_books_on_email")
+      end
+    end
+
     it "sucessfully updates the PK sequence" do
       select_query = <<~SQL
         SELECT * FROM books;

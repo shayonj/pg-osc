@@ -96,6 +96,12 @@ module PgOnlineSchemaChange
                   default: false,
                   desc:
                     "Skip foreign key validation after swap. You shouldn't need this unless you have a very specific use case, like manually validating foreign key constraints after swap."
+    method_option :preserve_object_names,
+                  type: :boolean,
+                  required: false,
+                  default: false,
+                  desc:
+                    "Rename indexes and constraints on the shadow table back to their original names (based on the primary table) after swap, instead of leaving the names derived from the shadow table."
 
     def perform
       client_options = Struct.new(*options.keys.map(&:to_sym)).new(*options.values)

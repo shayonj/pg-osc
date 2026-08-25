@@ -134,6 +134,132 @@ module PgOnlineSchemaChange
         indexes
       end
 
+      def get_index_names_for(client, table)
+        get_indexes_with_definitions_for(client, table).map { |index| index[:name] }
+      end
+
+      def get_indexes_with_definitions_for(client, table)
+        query = <<~SQL
+          SELECT indexname, indexdef
+          FROM pg_indexes
+          WHERE schemaname = '#{client.schema}' AND tablename = '#{table}'
+          ORDER BY indexname
+        SQL
+
+        indexes = []
+        run(client.connection, query) do |result|
+          indexes = result.map { |row| { name: row["indexname"], definition: row["indexdef"] } }
+        end
+
+        indexes
+      end
+
+      def get_constraint_names_for(client, table)
+        get_constraints_with_definitions_for(client, table).map { |constraint| constraint[:name] }
+      end
+
+      def get_constraints_with_definitions_for(client, table)
+        query = <<~SQL
+          SELECT conname, pg_get_constraintdef(oid) AS condef
+          FROM pg_constraint
+          WHERE conrelid = '#{client.schema}.#{table}'::regclass
+          ORDER BY conname
+        SQL
+
+        constraints = []
+        run(client.connection, query) do |result|
+          constraints = result.map { |row| { name: row["conname"], definition: row["condef"] } }
+        end
+
+        constraints
+      end
+
+      # An index/constraint definition with its own name and its table's name blanked
+      # out, so the same object on the primary and shadow tables compares equal. The
+      # name is substituted before the table so that a name containing the table name
+      # (index_widgets_on_x, pgosc_st_widgets_ab12cd_x_idx) doesn't leave a fragment
+      # behind for the table pass to hit.
+      def definition_signature(definition, name, table)
+        [[name, "__NAME__"], [table, "__TABLE__"]].reduce(definition) do |signature, (value, placeholder)|
+          signature.gsub(/"#{Regexp.escape(value)}"|\b#{Regexp.escape(value)}\b/, placeholder)
+        end
+      end
+
+      # Pairs each object on the shadow table with the primary table object it was
+      # copied from, matching on definition rather than name — LIKE ... INCLUDING ALL
+      # discards the original names, so they can't be recovered from the shadow's.
+      #
+      # Objects whose definitions collide (two indexes over the same columns) have no
+      # meaningful pairing, so they're matched in name order on both sides. Which of
+      # the interchangeable names each one ends up with is arbitrary, but it's the same
+      # arbitrary result on every run.
+      def pair_by_definition(primary_objects, shadow_objects, primary_table, shadow_table)
+        primary_by_signature =
+          primary_objects
+            .sort_by { |object| object[:name] }
+            .group_by { |object| definition_signature(object[:definition], object[:name], primary_table) }
+
+        shadow_objects
+          .sort_by { |object| object[:name] }
+          .group_by { |object| definition_signature(object[:definition], object[:name], shadow_table) }
+          .flat_map do |signature, shadow_group|
+            primary_group = primary_by_signature[signature] || []
+            shadow_group.zip(primary_group).filter_map do |shadow, primary|
+              next unless primary
+
+              { shadow_name: shadow[:name], original_name: primary[:name] }
+            end
+          end
+      end
+
+      # Indexes and constraints created via "LIKE source_table INCLUDING ALL" on the
+      # shadow table are renamed by Postgres, so a swap would otherwise leave the live
+      # table with names like pgosc_st_widgets_ab12cd_pkey. This builds statements to
+      # put the primary table's names back, pairing objects by definition — the
+      # original names aren't recoverable from the shadow's, which are generated from
+      # the shadow table and the indexed columns.
+      #
+      # The primary table (renamed to old_primary_table earlier in the same swap
+      # transaction) still holds those names, since renaming a table doesn't rename its
+      # indexes/constraints, so they have to be moved aside first or the restores below
+      # would collide. Names are read now, before the swap SQL runs and while the table
+      # is still client.table; the generated statements target old_primary_table, which
+      # is what it's called by the time they execute.
+      def restore_names_statement_for(client, shadow_table, old_primary_table)
+        index_pairs =
+          pair_by_definition(
+            get_indexes_with_definitions_for(client, client.table),
+            get_indexes_with_definitions_for(client, shadow_table),
+            client.table,
+            shadow_table
+          ).reject { |pair| pair[:shadow_name] == pair[:original_name] }
+
+        # Constraints backed by an index (primary key, unique) share its name, so the
+        # index rename above already covers them; renaming again would collide.
+        shadow_index_names = get_index_names_for(client, shadow_table)
+        constraint_pairs =
+          pair_by_definition(
+            get_constraints_with_definitions_for(client, client.table),
+            get_constraints_with_definitions_for(client, shadow_table).reject do |constraint|
+              shadow_index_names.include?(constraint[:name])
+            end,
+            client.table,
+            shadow_table
+          ).reject { |pair| pair[:shadow_name] == pair[:original_name] }
+
+        statements =
+          index_pairs.map { |pair| "ALTER INDEX #{pair[:original_name]} RENAME TO pgosc_op_#{pair[:original_name]};" } +
+          constraint_pairs.map do |pair|
+            "ALTER TABLE #{old_primary_table} RENAME CONSTRAINT #{pair[:original_name]} TO pgosc_op_#{pair[:original_name]};"
+          end +
+          index_pairs.map { |pair| "ALTER INDEX #{pair[:shadow_name]} RENAME TO #{pair[:original_name]};" } +
+          constraint_pairs.map do |pair|
+            "ALTER TABLE #{client.table_name} RENAME CONSTRAINT #{pair[:shadow_name]} TO #{pair[:original_name]};"
+          end
+
+        statements.join
+      end
+
       # fetches the sequence name of a table and column combination
       def get_sequence_name(client, table, column)
         query = <<~SQL
