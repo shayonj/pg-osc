@@ -1096,6 +1096,30 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
         names = PgOnlineSchemaChange::Query.get_constraint_names_for(client, "books")
         expect(names).to include("books_password_check")
       end
+
+      # Names Postgres wouldn't generate itself, which is most of them in a Rails app
+      # (index_books_on_x). These can't be derived from the shadow table's names, so
+      # they're the case that proves objects are paired by definition.
+      it "restores names that aren't Postgres' own defaults" do
+        # The outer before block already built the shadow table, so these have to go
+        # onto the primary and be copied across again to end up on both.
+        PgOnlineSchemaChange::Query.run(
+          client.connection,
+          "CREATE INDEX index_books_on_email_and_username ON books (email, username);
+           CREATE INDEX index_books_on_username_where_recent ON books (username) WHERE seller_id > 0;
+           DROP TABLE #{described_class.shadow_table};",
+        )
+        described_class.setup_shadow_table!
+        described_class.run_alter_statement!
+
+        described_class.swap!
+
+        names = PgOnlineSchemaChange::Query.get_index_names_for(client, "books")
+        expect(names).to include(
+          "index_books_on_email_and_username",
+          "index_books_on_username_where_recent",
+        )
+      end
     end
 
     it "sucessfully updates the PK sequence" do
