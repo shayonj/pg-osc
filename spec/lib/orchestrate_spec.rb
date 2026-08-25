@@ -1120,6 +1120,25 @@ RSpec.describe(PgOnlineSchemaChange::Orchestrate) do
           "index_books_on_username_where_recent",
         )
       end
+
+      # Two indexes over the same columns are interchangeable, so which name each ends
+      # up with is arbitrary — but it has to be the same arbitrary result every run,
+      # or a swap could silently shuffle names between them.
+      it "restores interchangeable names deterministically" do
+        PgOnlineSchemaChange::Query.run(
+          client.connection,
+          "CREATE INDEX aaa_books_on_email ON books (email);
+           CREATE INDEX zzz_books_on_email ON books (email);
+           DROP TABLE #{described_class.shadow_table};",
+        )
+        described_class.setup_shadow_table!
+        described_class.run_alter_statement!
+
+        described_class.swap!
+
+        names = PgOnlineSchemaChange::Query.get_index_names_for(client, "books")
+        expect(names).to include("aaa_books_on_email", "zzz_books_on_email")
+      end
     end
 
     it "sucessfully updates the PK sequence" do
